@@ -100,6 +100,7 @@ heads.replaceChildren(...columns.map((column) => {
 
 form.addEventListener("submit", sync);
 document.querySelector("#sync-all").addEventListener("click", syncAll);
+document.querySelector("#start-cron").addEventListener("click", startCron);
 rows.addEventListener("click", (event) => {
   const button = event.target.closest(".row-sync");
   if (button) syncOne(button);
@@ -152,6 +153,22 @@ async function syncAll() {
     state.stocks = stocks;
     render();
     status.textContent = `Synced ${stocks.length} stocks`;
+  } catch (error) {
+    status.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function startCron() {
+  const button = document.querySelector("#start-cron");
+  button.disabled = true;
+  status.textContent = "Starting daily sync…";
+  try {
+    const response = await fetch("/api/v1/stocks/sync-due", { method: "POST" });
+    if (!response.ok) throw new Error(await readError(response));
+    const body = await response.json();
+    status.textContent = body.message;
   } catch (error) {
     status.textContent = error.message;
   } finally {

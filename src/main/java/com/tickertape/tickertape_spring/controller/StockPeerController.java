@@ -1,5 +1,6 @@
 package com.tickertape.tickertape_spring.controller;
 
+import com.tickertape.tickertape_spring.dto.DailySyncStartResponse;
 import com.tickertape.tickertape_spring.dto.StockPeerResponse;
 import com.tickertape.tickertape_spring.job.StockSyncJob;
 import com.tickertape.tickertape_spring.service.StockPeerService;
@@ -21,6 +22,11 @@ public class StockPeerController {
 
     private final StockPeerService stockPeerService;
     private final StockSyncJob stockSyncJob;
+
+    @PostMapping("/sync-due")
+    public ResponseEntity<DailySyncStartResponse> startDailySync() {
+        return ResponseEntity.accepted().body(stockSyncJob.startNow());
+    }
 
     @PostMapping("/sync-all")
     public ResponseEntity<List<StockPeerResponse>> syncAll() {

@@ -67,6 +67,10 @@ public class StockPeerService {
         return stockPeerRepository.findAll().stream().map(this::toResponse).toList();
     }
 
+    public List<StockPeer> findStored() {
+        return stockPeerRepository.findAll();
+    }
+
     public List<String> findAllSids() {
         return stockPeerRepository.findAll().stream()
                 .map(StockPeer::getSid)
@@ -115,7 +119,6 @@ public class StockPeerService {
             peer.setTtmPe(ratios.getTtmPe());
             peer.setBreco(ratios.getBreco());
             peer.setWeek52Pct(ratios.getWeek52Pct());
-            peer.setMarketCap(ratios.getMarketCap());
             peer.setApef(ratios.getApef());
             peer.setDivDps(ratios.getDivDps());
             peer.setPbr(ratios.getPbr());
