@@ -28,6 +28,14 @@ jobs:
       - name: Build the jar
         run: mvn -B -DskipTests package
 
+      - name: Package the function
+        run: |
+          set -euo pipefail
+          printf '%s\n' '#!/bin/sh' 'exec java -jar app.jar' > run.sh
+          chmod 755 run.sh
+          cp target/tickertape-spring-0.0.1-SNAPSHOT.jar app.jar
+          zip -r function.zip run.sh app.jar
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -71,12 +79,11 @@ jobs:
         with:
           terraform_version: "1.9.8"
 
-      - name: Create the container registry
+      - name: Deploy the function
         working-directory: infra
         env:
-          TF_VAR_image_uri: placeholder
+          TF_VAR_package_path: ${{ github.workspace }}/function.zip
           TF_VAR_mongodb_uri: ${{ secrets.MONGODB_URI_TICKERTAPE }}
-          TF_VAR_create_lambda: "false"
         run: |
           terraform init -input=false \
             -backend-config="bucket=${{ steps.state.outputs.bucket }}" \
@@ -85,27 +92,6 @@ jobs:
             -backend-config="dynamodb_table=${{ steps.state.outputs.lock }}" \
             -backend-config="encrypt=true"
           terraform apply -input=false -auto-approve
-
-      - name: Build and push the image
-        id: image
-        run: |
-          set -euo pipefail
-          REPOSITORY="$(terraform -chdir=infra output -raw ecr_repository_url)"
-          REGISTRY="${REPOSITORY%%/*}"
-          TAG="${GITHUB_SHA}"
-          aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REGISTRY"
-          docker build --tag "${REPOSITORY}:${TAG}" --tag "${REPOSITORY}:latest" .
-          docker push "${REPOSITORY}:${TAG}"
-          docker push "${REPOSITORY}:latest"
-          echo "uri=${REPOSITORY}:${TAG}" >> "$GITHUB_OUTPUT"
-
-      - name: Deploy the function
-        working-directory: infra
-        env:
-          TF_VAR_image_uri: ${{ steps.image.outputs.uri }}
-          TF_VAR_mongodb_uri: ${{ secrets.MONGODB_URI_TICKERTAPE }}
-          TF_VAR_create_lambda: "true"
-        run: terraform apply -input=false -auto-approve
 
       - name: Show the site URL
         working-directory: infra
