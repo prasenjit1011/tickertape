@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_REGION: ap-south-1
 
 jobs:
   deploy:
@@ -41,22 +41,18 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ap-south-1
 
       - name: Prepare Terraform state
         id: state
         run: |
           set -euo pipefail
           ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-          BUCKET="tickertape-tfstate-${ACCOUNT_ID}"
+          BUCKET="tickertape-tfstate-${ACCOUNT_ID}-ap-south-1"
           LOCK="tickertape-tflock"
           if ! aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
-            if [ "$AWS_REGION" = "us-east-1" ]; then
-              aws s3api create-bucket --bucket "$BUCKET" --region "$AWS_REGION"
-            else
-              aws s3api create-bucket --bucket "$BUCKET" --region "$AWS_REGION" \
-                --create-bucket-configuration "LocationConstraint=${AWS_REGION}"
-            fi
+            aws s3api create-bucket --bucket "$BUCKET" --region "$AWS_REGION" \
+              --create-bucket-configuration LocationConstraint=ap-south-1
           fi
           aws s3api put-bucket-versioning --bucket "$BUCKET" \
             --versioning-configuration Status=Enabled
@@ -88,7 +84,7 @@ jobs:
           terraform init -input=false \
             -backend-config="bucket=${{ steps.state.outputs.bucket }}" \
             -backend-config="key=lambda/terraform.tfstate" \
-            -backend-config="region=${{ secrets.AWS_REGION }}" \
+            -backend-config="region=ap-south-1" \
             -backend-config="dynamodb_table=${{ steps.state.outputs.lock }}" \
             -backend-config="encrypt=true"
           terraform apply -input=false -auto-approve

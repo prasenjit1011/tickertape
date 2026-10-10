@@ -12,13 +12,7 @@ terraform {
 }
 
 provider "aws" {
-  region = var.aws_region
-}
-
-variable "aws_region" {
-  description = "AWS region for the Lambda function."
-  type        = string
-  default     = "us-east-1"
+  region = "ap-south-1"
 }
 
 variable "package_path" {
@@ -33,7 +27,7 @@ variable "mongodb_uri" {
 }
 
 resource "aws_iam_role" "lambda" {
-  name = "tickertape-spring-lambda"
+  name = "tickertape-spring-lambda-ap-south-1"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -55,7 +49,7 @@ resource "aws_iam_role_policy_attachment" "lambda_logs" {
 }
 
 resource "aws_lambda_function" "app" {
-  function_name = "tickertape-spring"
+  function_name = "moneyctrl"
   role          = aws_iam_role.lambda.arn
   runtime       = "java21"
   handler       = "run.sh"
@@ -65,7 +59,7 @@ resource "aws_lambda_function" "app" {
   memory_size   = 1024
   timeout       = 60
   layers = [
-    "arn:aws:lambda:${var.aws_region}:753240598075:layer:LambdaAdapterLayerX86:30"
+    "arn:aws:lambda:ap-south-1:753240598075:layer:LambdaAdapterLayerX86:30"
   ]
 
   environment {
