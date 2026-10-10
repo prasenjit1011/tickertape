@@ -1,6 +1,7 @@
 package com.tickertape.tickertape_spring.controller;
 
 import com.tickertape.tickertape_spring.dto.DailySyncStartResponse;
+import com.tickertape.tickertape_spring.dto.MonthlyHighResponse;
 import com.tickertape.tickertape_spring.dto.StockPeerResponse;
 import com.tickertape.tickertape_spring.dto.YearlyRangeResponse;
 import com.tickertape.tickertape_spring.job.StockSyncJob;
@@ -53,6 +54,11 @@ public class StockPeerController {
     @GetMapping("/{sid}/yearly")
     public ResponseEntity<List<YearlyRangeResponse>> yearly(@PathVariable String sid) {
         return ResponseEntity.ok(stockPeerService.yearlyRanges(sid));
+    }
+
+    @GetMapping("/{sid}/monthly")
+    public ResponseEntity<List<MonthlyHighResponse>> monthly(@PathVariable String sid) {
+        return ResponseEntity.ok(stockPeerService.monthlyHighs(sid));
     }
 
     @GetMapping

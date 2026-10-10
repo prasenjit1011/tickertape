@@ -53,9 +53,13 @@ public class TickertapeClient {
     }
 
     public TickertapeChartResponse fetchChart(String sid) {
+        return fetchChart(sid, "max");
+    }
+
+    public TickertapeChartResponse fetchChart(String sid, String duration) {
         waitForNextCall();
         return infoClient.get()
-                .uri("/stocks/charts/inter/{sid}?duration=max", sid)
+                .uri("/stocks/charts/inter/{sid}?duration={duration}", sid, duration)
                 .retrieve()
                 .body(TickertapeChartResponse.class);
     }

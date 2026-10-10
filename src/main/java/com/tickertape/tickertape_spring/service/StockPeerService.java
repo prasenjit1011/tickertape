@@ -1,6 +1,7 @@
 package com.tickertape.tickertape_spring.service;
 
 import com.tickertape.tickertape_spring.client.TickertapeClient;
+import com.tickertape.tickertape_spring.dto.MonthlyHighResponse;
 import com.tickertape.tickertape_spring.dto.StockPeerResponse;
 import com.tickertape.tickertape_spring.dto.TickertapeChartResponse;
 import com.tickertape.tickertape_spring.dto.TickertapeInfoResponse;
@@ -14,12 +15,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -87,15 +90,8 @@ public class StockPeerService {
     }
 
     public List<YearlyRangeResponse> yearlyRanges(String sid) {
-        TickertapeChartResponse chart = tickertapeClient.fetchChart(sid);
-        List<TickertapeChartResponse.Point> points = chart == null || chart.getData() == null
-                ? List.of()
-                : chart.getData().stream()
-                .filter(series -> series.getPoints() != null)
-                .flatMap(series -> series.getPoints().stream())
-                .toList();
         Map<Integer, YearBucket> byYear = new HashMap<>();
-        for (TickertapeChartResponse.Point point : points) {
+        for (TickertapeChartResponse.Point point : chartPoints(tickertapeClient.fetchChart(sid))) {
             if (point.getTs() == null || point.getLp() == null) {
                 continue;
             }
@@ -108,6 +104,34 @@ public class StockPeerService {
         return byYear.entrySet().stream()
                 .sorted(Map.Entry.<Integer, YearBucket>comparingByKey(Comparator.reverseOrder()))
                 .map(entry -> entry.getValue().toResponse(entry.getKey()))
+                .toList();
+    }
+
+    public List<MonthlyHighResponse> monthlyHighs(String sid) {
+        Map<YearMonth, MonthBucket> byMonth = new HashMap<>();
+        for (TickertapeChartResponse.Point point : chartPoints(tickertapeClient.fetchChart(sid, "3y"))) {
+            if (point.getTs() == null || point.getLp() == null) {
+                continue;
+            }
+            YearMonth month = YearMonth.from(point.getTs().atZone(ZoneOffset.UTC));
+            byMonth.computeIfAbsent(month, ignored -> new MonthBucket()).accept(point.getTs(), point.getLp());
+        }
+        if (byMonth.isEmpty()) {
+            throw new UpstreamDataException("Tickertape 3y chart for '" + sid + "' did not include prices");
+        }
+        return byMonth.entrySet().stream()
+                .sorted(Map.Entry.<YearMonth, MonthBucket>comparingByKey(Comparator.reverseOrder()))
+                .map(entry -> entry.getValue().toResponse(entry.getKey()))
+                .toList();
+    }
+
+    private static List<TickertapeChartResponse.Point> chartPoints(TickertapeChartResponse chart) {
+        if (chart == null || chart.getData() == null) {
+            return List.of();
+        }
+        return chart.getData().stream()
+                .filter(series -> series.getPoints() != null)
+                .flatMap(series -> series.getPoints().stream())
                 .toList();
     }
 
@@ -324,6 +348,39 @@ public class StockPeerService {
         }
 
         private static String week(Instant ts) {
+            return DateTimeFormatter.ISO_LOCAL_DATE.format(ts.atZone(ZoneOffset.UTC));
+        }
+    }
+
+    private static final class MonthBucket {
+        private static final DateTimeFormatter MONTH = DateTimeFormatter.ofPattern("MMM yyyy", Locale.ENGLISH);
+
+        private double low = Double.POSITIVE_INFINITY;
+        private double high = Double.NEGATIVE_INFINITY;
+        private Instant lowTs;
+        private Instant highTs;
+
+        private void accept(Instant ts, double price) {
+            if (price < low) {
+                low = price;
+                lowTs = ts;
+            }
+            if (price > high) {
+                high = price;
+                highTs = ts;
+            }
+        }
+
+        private MonthlyHighResponse toResponse(YearMonth month) {
+            return new MonthlyHighResponse(
+                    month.format(MONTH),
+                    low,
+                    date(lowTs),
+                    high,
+                    date(highTs));
+        }
+
+        private static String date(Instant ts) {
             return DateTimeFormatter.ISO_LOCAL_DATE.format(ts.atZone(ZoneOffset.UTC));
         }
     }

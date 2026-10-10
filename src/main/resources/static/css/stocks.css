@@ -64,7 +64,20 @@ body.stocks-page .sync-form input {
 
 body.stocks-page .filter input { min-width: 16rem; }
 
-body.stocks-page .sync-form { display: flex; }
+body.stocks-page .sync-form { display: flex; align-items: center; }
+
+body.stocks-page .icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+body.stocks-page .icon-btn svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex: 0 0 auto;
+}
 
 body.stocks-page .status { margin: 0; min-height: 0; white-space: nowrap; }
 
@@ -90,6 +103,32 @@ body.stocks-page .yearly-bar {
 }
 
 body.stocks-page .yearly-bar h2 { margin: 0; font-size: 1rem; }
+
+body.stocks-page .range-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  min-height: 0;
+}
+
+body.stocks-page .range-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+body.stocks-page .range-col + .range-col {
+  border-left: 1px solid #2d6a56;
+}
+
+body.stocks-page .range-label {
+  margin: 0;
+  padding: 0 0.9rem 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #b7d4c6;
+}
 
 body.stocks-page .yearly-wrap {
   flex: 1 1 auto;
@@ -183,8 +222,26 @@ body.stocks-page .data-table td.name-cell {
   gap: 0.75rem;
 }
 
+body.stocks-page .sector-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #8fd4b4;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+body.stocks-page .sector-link:hover,
+body.stocks-page .sector-link:focus-visible {
+  color: #e7f6ee;
+}
+
 body.stocks-page .row-sync,
-body.stocks-page .row-yearly {
+body.stocks-page .row-yearly,
+body.stocks-page .row-chart {
   flex: 0 0 auto;
   padding: 0.2rem 0.65rem;
   font-size: 0.82rem;
@@ -202,4 +259,8 @@ body.stocks-page .data-table tbody tr:hover { background: #1f5c48; }
   }
 
   body.stocks-page .filter input { min-width: 0; width: 100%; }
+
+  body.stocks-page .range-grid { grid-template-columns: 1fr; }
+
+  body.stocks-page .range-col + .range-col { border-left: 0; border-top: 1px solid #2d6a56; }
 }

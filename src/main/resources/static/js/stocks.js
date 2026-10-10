@@ -13,7 +13,7 @@ const columns = [
   { key: "marketCapLabel", label: "Cap label", type: "text" },
   { key: "mrktCapRank", label: "Cap rank", type: "number", digits: 0 },
   { key: "marketCap", label: "Market cap", type: "number", digits: 0 },
-  { key: "breco", label: "Breco", type: "number" },
+  { key: "breco", label: "Forecast", type: "number" },
   { key: "pe", label: "PE", type: "number" },
 
 
@@ -24,11 +24,17 @@ const columns = [
 
   { key: "wkChange", label: "Week %", type: "number", digits: 2 },
   { key: "mnChange", label: "Month %", type: "number", digits: 2 },
-  { key: "wkRange", label: "Week range", type: "number", digits: 2 },
-  { key: "mnRange", label: "Month range", type: "number", digits: 2 },
+  
+
   { key: "away52wH", label: "Away 52w high", type: "number", digits: 2 },
   { key: "away52wL", label: "Away 52w low", type: "number", digits: 2 },
 
+
+  
+  
+  { key: "wkRange", label: "Week range", type: "number", digits: 2 },
+  { key: "mnRange", label: "Month range", type: "number", digits: 2 },
+  
   { key: "52wHigh", label: "52w high", type: "number" },
   { key: "52wLow", label: "52w low", type: "number" },
   { key: "52wpct", label: "52w %", type: "number" },
@@ -83,6 +89,10 @@ const columns = [
 const state = {
   stocks: [],
   query: "",
+  sid: "",
+  sector: "",
+  hideSmall: false,
+  hideMid: false,
   sortKey: "mrktCapRank",
   sortType: "number",
   sortDir: 1
@@ -100,6 +110,8 @@ heads.replaceChildren(...columns.map((column) => {
 
 form.addEventListener("submit", sync);
 document.querySelector("#sync-all").addEventListener("click", syncAll);
+document.querySelector("#hide-small").addEventListener("click", () => toggleCap("hideSmall", "#hide-small"));
+document.querySelector("#hide-mid").addEventListener("click", () => toggleCap("hideMid", "#hide-mid"));
 document.querySelector("#start-cron").addEventListener("click", startCron);
 rows.addEventListener("click", (event) => {
   const yearly = event.target.closest(".row-yearly");
@@ -107,13 +119,25 @@ rows.addEventListener("click", (event) => {
     showYearly(yearly);
     return;
   }
+  const sector = event.target.closest(".sector-link");
+  if (sector) {
+    filterBySector(sector.dataset.sector);
+    return;
+  }
   const button = event.target.closest(".row-sync");
   if (button) syncOne(button);
 });
 document.querySelector("#yearly-close").addEventListener("click", () => {
   document.querySelector("#yearly-panel").hidden = true;
+  state.sid = "";
+  state.sector = "";
+  state.query = "";
+  filter.value = "";
+  render();
 });
 filter.addEventListener("input", () => {
+  state.sid = "";
+  state.sector = "";
   state.query = filter.value.trim().toLowerCase();
   render();
 });
@@ -186,12 +210,31 @@ async function startCron() {
 
 async function showYearly(button) {
   const sid = button.dataset.sid;
+  filter.value = sid;
+  state.sid = sid;
+  state.sector = "";
+  state.query = "";
+  render();
+
   const panel = document.querySelector("#yearly-panel");
-  const body = document.querySelector("#yearly-rows");
+  const yearlyBody = document.querySelector("#yearly-rows");
+  const monthlyBody = document.querySelector("#monthly-rows");
   panel.hidden = false;
-  document.querySelector("#yearly-title").textContent = `${sid} yearly high and low`;
-  body.innerHTML = `<tr><td colspan="5">Loading ${escapeHtml(sid)}…</td></tr>`;
-  button.disabled = true;
+  document.querySelector("#yearly-title").textContent = sid;
+  yearlyBody.innerHTML = `<tr><td colspan="5">Loading ${escapeHtml(sid)}…</td></tr>`;
+  monthlyBody.innerHTML = `<tr><td colspan="5">Loading ${escapeHtml(sid)}…</td></tr>`;
+  setYearlyDisabled(sid, true);
+  try {
+    await Promise.all([
+      loadYearlyRows(sid, yearlyBody),
+      loadMonthlyRows(sid, monthlyBody)
+    ]);
+  } finally {
+    setYearlyDisabled(sid, false);
+  }
+}
+
+async function loadYearlyRows(sid, body) {
   try {
     const response = await fetch(`/api/v1/stocks/${encodeURIComponent(sid)}/yearly`);
     if (!response.ok) throw new Error(await readError(response));
@@ -203,9 +246,27 @@ async function showYearly(button) {
     }));
   } catch (error) {
     body.innerHTML = `<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;
-  } finally {
-    button.disabled = false;
   }
+}
+
+async function loadMonthlyRows(sid, body) {
+  try {
+    const response = await fetch(`/api/v1/stocks/${encodeURIComponent(sid)}/monthly`);
+    if (!response.ok) throw new Error(await readError(response));
+    const months = await response.json();
+    body.replaceChildren(...months.map((month) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `<td>${escapeHtml(month.month)}</td><td class="num">${formatNumber(month.low, 2)}</td><td>${formatNumber(month.high, 2)}</td><td class="num">${escapeHtml(month.lowDate)}</td><td>${escapeHtml(month.highDate)}</td>`;
+      return row;
+    }));
+  } catch (error) {
+    body.innerHTML = `<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;
+  }
+}
+
+function setYearlyDisabled(sid, disabled) {
+  const button = rows.querySelector(`.row-yearly[data-sid="${CSS.escape(sid)}"]`);
+  if (button) button.disabled = disabled;
 }
 
 async function syncOne(button) {
@@ -227,6 +288,32 @@ async function syncOne(button) {
   }
 }
 
+function toggleCap(key, selector) {
+  state[key] = !state[key];
+  const button = document.querySelector(selector);
+  button.setAttribute("aria-pressed", String(state[key]));
+  button.classList.toggle("primary", state[key]);
+  button.classList.toggle("ghost", !state[key]);
+  render();
+}
+
+function capHidden(stock) {
+  const label = String(stock.marketCapLabel || "").toLowerCase();
+  if (state.hideSmall && label === "smallcap") return true;
+  if (state.hideMid && label === "midcap") return true;
+  return false;
+}
+
+function filterBySector(sector) {
+  const name = (sector || "").trim();
+  if (!name) return;
+  state.sector = name;
+  state.sid = "";
+  state.query = "";
+  filter.value = name;
+  render();
+}
+
 function sortBy(header) {
   const key = header.dataset.key;
   if (state.sortKey === key) {
@@ -242,13 +329,20 @@ function sortBy(header) {
 function render() {
   const visible = state.stocks
     .filter((stock) => {
+      if (state.sid && stock.sid !== state.sid) return false;
+      if (capHidden(stock)) return false;
+      if (state.sector && String(stock.sector || "").toLowerCase() !== state.sector.toLowerCase()) return false;
       if (!state.query) return true;
       return `${stock.name} ${stock.ticker} ${stock.sid} ${stock.sector}`.toLowerCase().includes(state.query);
     })
     .sort(compare);
 
+  const removed = [
+    state.hideSmall ? "small removed" : "",
+    state.hideMid ? "mid removed" : ""
+  ].filter(Boolean).join(" · ");
   status.textContent = state.stocks.length
-    ? `${visible.length} of ${state.stocks.length}`
+    ? `${visible.length} of ${state.stocks.length}${state.sector ? ` · ${state.sector}` : ""}${removed ? ` · ${removed}` : ""}`
     : "No stocks stored yet. Sync a symbol.";
 
   headers().forEach((header) => {
@@ -267,7 +361,12 @@ function render() {
     const row = document.createElement("tr");
     row.innerHTML = columns.map((column) => {
       if (column.key === "name") {
-        return `<td class="name-cell"><span>${escapeHtml(stock.name)}</span><span class="row-actions"><button type="button" class="btn ghost row-yearly" data-sid="${escapeHtml(stock.sid)}">Yearly</button><button type="button" class="btn ghost row-sync" data-sid="${escapeHtml(stock.sid)}">Sync</button></span></td>`;
+        return `<td class="name-cell"><span>${escapeHtml(stock.name)}</span><span class="row-actions"><a class="btn ghost row-chart" href="${escapeHtml(chartUrl(stock.sid))}" target="_blank" rel="noopener">Chart</a><button type="button" class="btn ghost row-yearly" data-sid="${escapeHtml(stock.sid)}">Yearly</button><button type="button" class="btn ghost row-sync" data-sid="${escapeHtml(stock.sid)}">Sync</button></span></td>`;
+      }
+      if (column.key === "sector") {
+        const sector = stock.sector ?? "";
+        if (!String(sector).trim()) return `<td>—</td>`;
+        return `<td><button type="button" class="sector-link" data-sector="${escapeHtml(sector)}">${escapeHtml(sector)}</button></td>`;
       }
       const css = column.type === "number" ? " class=\"num\"" : "";
       return `<td${css}>${formatCell(stock[column.key], column)}</td>`;
@@ -324,6 +423,10 @@ async function readError(response) {
   } catch {
     return `Request failed (${response.status})`;
   }
+}
+
+function chartUrl(sid) {
+  return `https://www.tickertape.in/stocks/${encodeURIComponent(sid)}?chartScope=1mo`;
 }
 
 function escapeHtml(value) {
