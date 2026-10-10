@@ -2,6 +2,7 @@ package com.tickertape.tickertape_spring.controller;
 
 import com.tickertape.tickertape_spring.dto.DailySyncStartResponse;
 import com.tickertape.tickertape_spring.dto.StockPeerResponse;
+import com.tickertape.tickertape_spring.dto.YearlyRangeResponse;
 import com.tickertape.tickertape_spring.job.StockSyncJob;
 import com.tickertape.tickertape_spring.service.StockPeerService;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,11 @@ public class StockPeerController {
     @PostMapping("/{sid}/refresh")
     public ResponseEntity<StockPeerResponse> refreshOne(@PathVariable String sid) {
         return ResponseEntity.ok(stockPeerService.syncOne(sid));
+    }
+
+    @GetMapping("/{sid}/yearly")
+    public ResponseEntity<List<YearlyRangeResponse>> yearly(@PathVariable String sid) {
+        return ResponseEntity.ok(stockPeerService.yearlyRanges(sid));
     }
 
     @GetMapping

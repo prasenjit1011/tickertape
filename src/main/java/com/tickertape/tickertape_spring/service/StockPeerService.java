@@ -2,7 +2,9 @@ package com.tickertape.tickertape_spring.service;
 
 import com.tickertape.tickertape_spring.client.TickertapeClient;
 import com.tickertape.tickertape_spring.dto.StockPeerResponse;
+import com.tickertape.tickertape_spring.dto.TickertapeChartResponse;
 import com.tickertape.tickertape_spring.dto.TickertapeInfoResponse;
+import com.tickertape.tickertape_spring.dto.YearlyRangeResponse;
 import com.tickertape.tickertape_spring.dto.TickertapeQuoteResponse;
 import com.tickertape.tickertape_spring.dto.TickertapeSummaryResponse;
 import com.tickertape.tickertape_spring.exception.UpstreamDataException;
@@ -12,8 +14,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -76,6 +83,31 @@ public class StockPeerService {
                 .map(StockPeer::getSid)
                 .filter(sid -> sid != null && !sid.isBlank())
                 .distinct()
+                .toList();
+    }
+
+    public List<YearlyRangeResponse> yearlyRanges(String sid) {
+        TickertapeChartResponse chart = tickertapeClient.fetchChart(sid);
+        List<TickertapeChartResponse.Point> points = chart == null || chart.getData() == null
+                ? List.of()
+                : chart.getData().stream()
+                .filter(series -> series.getPoints() != null)
+                .flatMap(series -> series.getPoints().stream())
+                .toList();
+        Map<Integer, YearBucket> byYear = new HashMap<>();
+        for (TickertapeChartResponse.Point point : points) {
+            if (point.getTs() == null || point.getLp() == null) {
+                continue;
+            }
+            int year = point.getTs().atZone(ZoneOffset.UTC).getYear();
+            byYear.computeIfAbsent(year, ignored -> new YearBucket()).accept(point.getTs(), point.getLp());
+        }
+        if (byYear.isEmpty()) {
+            throw new UpstreamDataException("Tickertape chart for '" + sid + "' did not include prices");
+        }
+        return byYear.entrySet().stream()
+                .sorted(Map.Entry.<Integer, YearBucket>comparingByKey(Comparator.reverseOrder()))
+                .map(entry -> entry.getValue().toResponse(entry.getKey()))
                 .toList();
     }
 
@@ -268,5 +300,31 @@ public class StockPeerService {
                 .high52w(peer.getHigh52w())
                 .updatedAt(peer.getUpdatedAt())
                 .build();
+    }
+
+    private static final class YearBucket {
+        private double low = Double.POSITIVE_INFINITY;
+        private double high = Double.NEGATIVE_INFINITY;
+        private Instant lowTs;
+        private Instant highTs;
+
+        private void accept(Instant ts, double price) {
+            if (price < low) {
+                low = price;
+                lowTs = ts;
+            }
+            if (price > high) {
+                high = price;
+                highTs = ts;
+            }
+        }
+
+        private YearlyRangeResponse toResponse(int year) {
+            return new YearlyRangeResponse(year, low, week(lowTs), high, week(highTs));
+        }
+
+        private static String week(Instant ts) {
+            return DateTimeFormatter.ISO_LOCAL_DATE.format(ts.atZone(ZoneOffset.UTC));
+        }
     }
 }

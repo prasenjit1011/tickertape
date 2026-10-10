@@ -1,5 +1,6 @@
 package com.tickertape.tickertape_spring.client;
 
+import com.tickertape.tickertape_spring.dto.TickertapeChartResponse;
 import com.tickertape.tickertape_spring.dto.TickertapeInfoResponse;
 import com.tickertape.tickertape_spring.dto.TickertapeQuoteResponse;
 import com.tickertape.tickertape_spring.dto.TickertapeSummaryResponse;
@@ -49,6 +50,14 @@ public class TickertapeClient {
                 .uri("/stocks/info/{sid}", sid)
                 .retrieve()
                 .body(TickertapeInfoResponse.class);
+    }
+
+    public TickertapeChartResponse fetchChart(String sid) {
+        waitForNextCall();
+        return infoClient.get()
+                .uri("/stocks/charts/inter/{sid}?duration=max", sid)
+                .retrieve()
+                .body(TickertapeChartResponse.class);
     }
 
     public TickertapeQuoteResponse fetchQuote(String sid) {

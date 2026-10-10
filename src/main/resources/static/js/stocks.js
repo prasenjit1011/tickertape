@@ -102,8 +102,16 @@ form.addEventListener("submit", sync);
 document.querySelector("#sync-all").addEventListener("click", syncAll);
 document.querySelector("#start-cron").addEventListener("click", startCron);
 rows.addEventListener("click", (event) => {
+  const yearly = event.target.closest(".row-yearly");
+  if (yearly) {
+    showYearly(yearly);
+    return;
+  }
   const button = event.target.closest(".row-sync");
   if (button) syncOne(button);
+});
+document.querySelector("#yearly-close").addEventListener("click", () => {
+  document.querySelector("#yearly-panel").hidden = true;
 });
 filter.addEventListener("input", () => {
   state.query = filter.value.trim().toLowerCase();
@@ -176,6 +184,30 @@ async function startCron() {
   }
 }
 
+async function showYearly(button) {
+  const sid = button.dataset.sid;
+  const panel = document.querySelector("#yearly-panel");
+  const body = document.querySelector("#yearly-rows");
+  panel.hidden = false;
+  document.querySelector("#yearly-title").textContent = `${sid} yearly high and low`;
+  body.innerHTML = `<tr><td colspan="5">Loading ${escapeHtml(sid)}…</td></tr>`;
+  button.disabled = true;
+  try {
+    const response = await fetch(`/api/v1/stocks/${encodeURIComponent(sid)}/yearly`);
+    if (!response.ok) throw new Error(await readError(response));
+    const years = await response.json();
+    body.replaceChildren(...years.map((year) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `<td>${year.year}</td><td class="num">${formatNumber(year.low, 2)}</td><td>${formatNumber(year.high, 2)}</td><td class="num">${escapeHtml(year.lowWeek)}</td><td>${escapeHtml(year.highWeek)}</td>`;
+      return row;
+    }));
+  } catch (error) {
+    body.innerHTML = `<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;
+  } finally {
+    button.disabled = false;
+  }
+}
+
 async function syncOne(button) {
   const sid = button.dataset.sid;
   button.disabled = true;
@@ -235,7 +267,7 @@ function render() {
     const row = document.createElement("tr");
     row.innerHTML = columns.map((column) => {
       if (column.key === "name") {
-        return `<td class="name-cell"><span>${escapeHtml(stock.name)}</span><button type="button" class="btn ghost row-sync" data-sid="${escapeHtml(stock.sid)}">Sync</button></td>`;
+        return `<td class="name-cell"><span>${escapeHtml(stock.name)}</span><span class="row-actions"><button type="button" class="btn ghost row-yearly" data-sid="${escapeHtml(stock.sid)}">Yearly</button><button type="button" class="btn ghost row-sync" data-sid="${escapeHtml(stock.sid)}">Sync</button></span></td>`;
       }
       const css = column.type === "number" ? " class=\"num\"" : "";
       return `<td${css}>${formatCell(stock[column.key], column)}</td>`;
@@ -280,8 +312,8 @@ function formatCell(value, column) {
 function formatNumber(value, digits = 2) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
   return new Intl.NumberFormat(undefined, {
-    maximumFractionDigits: digits,
-    minimumFractionDigits: digits
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0
   }).format(Number(value));
 }
 
