@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.RestClientException;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -23,6 +24,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleDuplicate(DuplicateResourceException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(buildBody(HttpStatus.CONFLICT, ex.getMessage()));
+    }
+
+    @ExceptionHandler({UpstreamDataException.class, RestClientException.class})
+    public ResponseEntity<Map<String, Object>> handleUpstream(RuntimeException ex) {
+        String message = ex instanceof UpstreamDataException
+                ? ex.getMessage()
+                : "Tickertape summary could not be loaded";
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(buildBody(HttpStatus.BAD_GATEWAY, message));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

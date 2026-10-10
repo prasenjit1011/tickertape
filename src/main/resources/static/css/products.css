@@ -37,6 +37,24 @@ body {
   padding: 1.5rem 0 1rem;
 }
 
+.top-actions,
+.sync-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+a.btn { text-decoration: none; }
+
+.layout.single {
+  grid-template-columns: 1fr;
+  width: min(1280px, calc(100% - 2rem));
+}
+
+.sync-form input { width: 7rem; margin-top: 0; }
+
+th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
 .brand {
   display: flex;
   align-items: center;

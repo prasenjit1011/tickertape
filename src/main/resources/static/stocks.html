@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stocks · Tickertape</title>
+  <link rel="stylesheet" href="/css/products.css">
+  <link rel="stylesheet" href="/css/stocks.css?v=5">
+</head>
+<body class="stocks-page">
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark">TT</span>
+      <div>
+        <p class="eyebrow">Tickertape</p>
+        <h1>Stock peers</h1>
+      </div>
+    </div>
+    <a class="btn ghost" href="/products">Products</a>
+  </header>
+
+  <main class="sheet">
+    <div class="sheet-bar">
+      <h2>About and peers</h2>
+      <p id="status" class="status" role="status"></p>
+      <label class="filter">
+        <span class="sr-only">Filter table</span>
+        <input id="filter" type="search" placeholder="Filter name, ticker, sector">
+      </label>
+      <form id="sync-form" class="sync-form">
+        <label>
+          <span class="sr-only">Symbol</span>
+          <input id="sid" name="sid" value="HYU" maxlength="12" required pattern="[A-Za-z0-9]+">
+        </label>
+        <button class="btn ghost" type="submit">Sync</button>
+        <button id="sync-all" class="btn primary" type="button">Sync Data</button>
+      </form>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr id="stock-heads"></tr>
+        </thead>
+        <tbody id="stock-rows"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="/js/stocks.js?v=6"></script>
+</body>
+</html>
