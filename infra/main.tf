@@ -4,7 +4,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.70"
+      version = "~> 6.28"
     }
   }
 
@@ -86,6 +86,14 @@ resource "aws_lambda_permission" "function_url" {
   function_name          = aws_lambda_function.app.function_name
   principal              = "*"
   function_url_auth_type = "NONE"
+}
+
+resource "aws_lambda_permission" "function_url_invoke" {
+  statement_id             = "FunctionURLInvokeAllowPublicAccess"
+  action                   = "lambda:InvokeFunction"
+  function_name            = aws_lambda_function.app.function_name
+  principal                = "*"
+  invoked_via_function_url = true
 }
 
 output "function_url" {
