@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Portfolio · Tickertape</title>
+  <link rel="stylesheet" href="/css/products.css">
+  <link rel="stylesheet" href="/css/stocks.css?v=12">
+  <link rel="stylesheet" href="/css/portfolio.css?v=1">
+</head>
+<body class="stocks-page portfolio-page">
+  <main class="sheet">
+    <div class="sheet-bar">
+      <div class="brand">
+        <span class="mark">TT</span>
+        <div>
+          <p class="eyebrow">Tickertape</p>
+          <h1>Portfolio</h1>
+        </div>
+      </div>
+      <p id="status" class="status" role="status">Loading portfolio…</p>
+      <label class="filter">
+        <span class="sr-only">Filter holdings</span>
+        <input id="filter" type="search" placeholder="Filter company or symbol">
+      </label>
+      <a class="btn ghost" href="/stocks">Stocks</a>
+    </div>
+
+    <section class="summary" aria-label="Portfolio totals">
+      <article class="card">
+        <p class="card-label">Invested</p>
+        <p id="sum-cost" class="card-value">—</p>
+      </article>
+      <article class="card">
+        <p class="card-label">Market value</p>
+        <p id="sum-market" class="card-value">—</p>
+      </article>
+      <article class="card" id="card-unreal">
+        <p class="card-label">Unrealized</p>
+        <p id="sum-unreal" class="card-value">—</p>
+        <p id="sum-unreal-pct" class="card-sub">—</p>
+      </article>
+      <article class="card" id="card-real">
+        <p class="card-label">Realized</p>
+        <p id="sum-real" class="card-value">—</p>
+      </article>
+    </section>
+
+    <div id="chips" class="chip-row" role="toolbar" aria-label="Status filter"></div>
+
+    <section id="detail" class="detail" hidden>
+      <div class="detail-bar">
+        <div>
+          <h2 id="detail-title">Holding</h2>
+          <p id="detail-meta" class="detail-meta"></p>
+        </div>
+        <button id="detail-close" class="btn ghost" type="button">Close</button>
+      </div>
+      <div id="detail-metrics" class="metric-row"></div>
+      <div class="trade-wrap">
+        <table class="trade-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Action</th>
+              <th class="num">Qty</th>
+              <th class="num">Price</th>
+              <th class="num">Value</th>
+              <th class="num">Charges</th>
+              <th>Exchange</th>
+            </tr>
+          </thead>
+          <tbody id="trade-rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr id="hold-heads"></tr>
+        </thead>
+        <tbody id="hold-rows"></tbody>
+      </table>
+    </div>
+  </main>
+  <script src="/js/portfolio.js?v=1"></script>
+</body>
+</html>

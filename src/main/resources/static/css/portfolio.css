@@ -1,0 +1,216 @@
+body.portfolio-page .sheet-bar h1 { font-size: 1.35rem; }
+
+body.portfolio-page .summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border-bottom: 1px solid #2d6a56;
+}
+
+body.portfolio-page .card {
+  margin: 0;
+  padding: 0.8rem 0.95rem 0.7rem;
+  background: #0f2e26;
+  border: 1px solid #245745;
+  border-radius: 0.75rem;
+}
+
+body.portfolio-page .card-label {
+  margin: 0;
+  color: #b7d4c6;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+body.portfolio-page .card-value {
+  margin: 0.28rem 0 0;
+  font-size: 1.35rem;
+  font-weight: 680;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+body.portfolio-page .card-sub {
+  margin: 0.1rem 0 0;
+  color: #b7d4c6;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+body.portfolio-page .card.up .card-value,
+body.portfolio-page .card.up .card-sub { color: #8fd4b4; }
+
+body.portfolio-page .card.down .card-value,
+body.portfolio-page .card.down .card-sub { color: #ffb4b4; }
+
+body.portfolio-page .chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid #2d6a56;
+}
+
+body.portfolio-page .chip {
+  border: 1px solid #3d7a66;
+  border-radius: 999px;
+  padding: 0.28rem 0.7rem;
+  background: transparent;
+  color: #e7f6ee;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+body.portfolio-page .chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+body.portfolio-page .detail {
+  display: flex;
+  flex-direction: column;
+  max-height: 42vh;
+  border-bottom: 1px solid #2d6a56;
+  background: #0f2e26;
+}
+
+body.portfolio-page .detail[hidden] { display: none; }
+
+body.portfolio-page .detail-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem 0.35rem;
+}
+
+body.portfolio-page .detail-bar h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+body.portfolio-page .detail-meta {
+  margin: 0.15rem 0 0;
+  color: #b7d4c6;
+}
+
+body.portfolio-page .metric-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  padding: 0.15rem 0.9rem 0.65rem;
+}
+
+body.portfolio-page .metric {
+  min-width: 6.5rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.55rem;
+  background: #12382d;
+  border: 1px solid #245745;
+}
+
+body.portfolio-page .metric span {
+  display: block;
+  color: #b7d4c6;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+body.portfolio-page .metric strong {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+body.portfolio-page .trade-wrap {
+  min-height: 0;
+  overflow: auto;
+}
+
+body.portfolio-page .trade-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+body.portfolio-page .trade-table th,
+body.portfolio-page .trade-table td {
+  padding: 0.4rem 0.75rem;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid #245745;
+}
+
+body.portfolio-page .trade-table th {
+  position: sticky;
+  top: 0;
+  background: #1a4d3e;
+  color: #b7d4c6;
+  font-size: 0.78rem;
+}
+
+body.portfolio-page .trade-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+body.portfolio-page .action-buy { color: #8fd4b4; font-weight: 700; }
+body.portfolio-page .action-sell { color: #ffb4b4; font-weight: 700; }
+
+body.portfolio-page .hold-name {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 14rem;
+}
+
+body.portfolio-page .hold-name small {
+  color: #b7d4c6;
+  font-size: 0.75rem;
+}
+
+body.portfolio-page .pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+body.portfolio-page .pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.12rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+body.portfolio-page .pill.profit,
+body.portfolio-page .pill.book { background: #145c3e; color: #d8ffe9; }
+body.portfolio-page .pill.loss { background: #6b3030; color: #ffd5d5; }
+body.portfolio-page .pill.review { background: #7a3b22; color: #ffe1cc; }
+body.portfolio-page .pill.hold { background: #1e4a3c; color: #d7ece3; }
+body.portfolio-page .pill.new { background: #1a4668; color: #d4ecff; }
+body.portfolio-page .pill.booked {
+  background: transparent;
+  border: 1px solid #3d7a66;
+  color: #b7d4c6;
+  font-weight: 600;
+}
+
+body.portfolio-page .pnl-up { color: #8fd4b4; }
+body.portfolio-page .pnl-down { color: #ffb4b4; }
+
+body.portfolio-page tr.is-selected td { background: #1f5c48; }
+body.portfolio-page tr.is-selected td:first-child { background: #1f5c48; }
+
+body.portfolio-page tbody tr { cursor: pointer; }
+
+body.portfolio-page .linkish {
+  color: #8fd4b4;
+}
+
+@media (max-width: 860px) {
+  body.portfolio-page .summary { grid-template-columns: 1fr 1fr; }
+}

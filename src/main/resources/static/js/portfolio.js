@@ -1,0 +1,585 @@
+const PORTFOLIO_URL = "/public/8506181188_PortFolioEqtSummary.csv";
+const ORDERS_URL = "/public/orderBook_Equity_1791616753390.csv";
+
+const STOP = new Set([
+  "LTD", "LIMITED", "INDIA", "THE", "AND", "OF", "CO", "COMPANY",
+  "CORP", "CORPORATION", "PLC", "PVT", "PRIVATE", "INC", "IND"
+]);
+
+const columns = [
+  { key: "company", label: "Company", type: "text" },
+  { key: "qty", label: "Qty", type: "number", digits: 0 },
+  { key: "avgCost", label: "Avg cost", type: "number", digits: 2 },
+  { key: "price", label: "Price", type: "number", digits: 2 },
+  { key: "marketValue", label: "Value", type: "number", digits: 0 },
+  { key: "unrealized", label: "Unrealized", type: "number", digits: 0 },
+  { key: "unrealizedPct", label: "Unreal %", type: "number", digits: 2 },
+  { key: "dayPct", label: "Day %", type: "number", digits: 2 },
+  { key: "realized", label: "Realized", type: "number", digits: 0 },
+  { key: "cap", label: "Cap", type: "text" },
+  { key: "sector", label: "Sector", type: "text" },
+  { key: "away52w", label: "Away 52w", type: "number", digits: 1 },
+  { key: "status", label: "Status", type: "status" },
+  { key: "lastTrade", label: "Last trade", type: "text" }
+];
+
+const statusRank = { review: 0, loss: 1, new: 2, hold: 3, profit: 4, book: 5 };
+
+const chips = [
+  { key: "all", label: "All" },
+  { key: "review", label: "Review" },
+  { key: "loss", label: "Under water" },
+  { key: "profit", label: "In profit" },
+  { key: "new", label: "Just bought" },
+  { key: "hold", label: "Hold" }
+];
+
+const state = {
+  holdings: [],
+  query: "",
+  status: "all",
+  sortKey: "unrealizedPct",
+  sortDir: 1,
+  selected: ""
+};
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let quoted = false;
+  const source = String(text).replace(/^\uFEFF/, "");
+  for (let i = 0; i < source.length; i++) {
+    const ch = source[i];
+    if (quoted) {
+      if (ch === '"') {
+        if (source[i + 1] === '"') {
+          cell += '"';
+          i += 1;
+        } else {
+          quoted = false;
+        }
+      } else {
+        cell += ch;
+      }
+    } else if (ch === '"') {
+      quoted = true;
+    } else if (ch === ",") {
+      row.push(cell);
+      cell = "";
+    } else if (ch === "\n") {
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+    } else if (ch !== "\r") {
+      cell += ch;
+    }
+  }
+  if (cell.length || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
+  return rows.filter((item) => item.some((value) => String(value).trim()));
+}
+
+function parseMoney(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const negative = raw.startsWith("(") || raw.startsWith("-");
+  const num = Number(raw.replace(/[(),%\s+]/g, "").replace(/^-/, ""));
+  if (!Number.isFinite(num)) return null;
+  return negative ? -Math.abs(num) : num;
+}
+
+function parseOrderDate(value) {
+  const match = String(value ?? "").trim().match(/^(\d{2})-([A-Za-z]{3})-(\d{2})$/);
+  if (!match) return null;
+  const months = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+  const month = months[match[2].toLowerCase()];
+  if (month === undefined) return null;
+  return new Date(2000 + Number(match[3]), month, Number(match[1]));
+}
+
+function rowsToObjects(text) {
+  const table = parseCsv(text);
+  if (!table.length) return [];
+  const headers = table[0].map((header) => header.trim());
+  return table.slice(1).map((row) => {
+    const record = {};
+    headers.forEach((header, index) => {
+      if (header) record[header] = row[index] ?? "";
+    });
+    return record;
+  });
+}
+
+function tokens(name) {
+  return String(name || "")
+    .toUpperCase()
+    .replace(/&/g, " AND ")
+    .replace(/[^A-Z0-9 ]/g, " ")
+    .split(/\s+/)
+    .filter((token) => token.length > 1 && !STOP.has(token));
+}
+
+function softEqual(left, right) {
+  if (left === right) return true;
+  if (left.length < 4 || right.length < 4) return false;
+  return left.startsWith(right) || right.startsWith(left);
+}
+
+function overlap(left, right) {
+  const used = new Set();
+  let hit = 0;
+  for (const token of left) {
+    const index = right.findIndex((other, position) => !used.has(position) && softEqual(token, other));
+    if (index >= 0) {
+      used.add(index);
+      hit += 1;
+    }
+  }
+  return hit;
+}
+
+function nameScore(holdingTokens, stockTokens) {
+  if (!holdingTokens.length || !stockTokens.length) return 0;
+  const hit = overlap(holdingTokens, stockTokens);
+  const dice = (2 * hit) / (holdingTokens.length + stockTokens.length);
+  const leading = dice >= 0.62
+    && holdingTokens[0]
+    && stockTokens[0]
+    && holdingTokens[0].length >= 5
+    && softEqual(holdingTokens[0], stockTokens[0])
+    && holdingTokens[1]
+    && stockTokens[1]
+    && softEqual(holdingTokens[1], stockTokens[1]);
+  return leading ? Math.max(dice, 0.86) : dice;
+}
+
+function matchStock(company, stocks) {
+  const holdingTokens = tokens(company);
+  let best = null;
+  let bestScore = 0;
+  let second = 0;
+  for (const stock of stocks) {
+    const score = nameScore(holdingTokens, tokens(stock.name));
+    if (score > bestScore) {
+      second = bestScore;
+      bestScore = score;
+      best = stock;
+    } else if (score > second) {
+      second = score;
+    }
+  }
+  if (!best) return null;
+  const first = holdingTokens[0];
+  const stockTokens = tokens(best.name);
+  if (first && first.length >= 4 && !stockTokens.some((token) => softEqual(first, token))) return null;
+  if (bestScore >= 0.75 && bestScore - second >= 0.08) return best;
+  if (bestScore >= 0.67 && bestScore - second >= 0.15) return best;
+  return null;
+}
+
+function ordersFor(company, stock, bySymbol) {
+  if (stock?.ticker) {
+    const direct = bySymbol.get(String(stock.ticker).toUpperCase());
+    if (direct?.length) return direct;
+  }
+  const compact = tokens(company).join("");
+  let bestSymbol = "";
+  let best = [];
+  for (const [symbol, list] of bySymbol) {
+    if (symbol.length < 4 || !compact) continue;
+    if (compact.startsWith(symbol) || symbol.startsWith(compact)) {
+      if (symbol.length > bestSymbol.length) {
+        bestSymbol = symbol;
+        best = list;
+      }
+    }
+  }
+  return best;
+}
+
+function daysSince(date) {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const then = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return Math.round((start - then) / 86400000);
+}
+
+function statusOf(holding) {
+  const pct = holding.unrealizedPct;
+  const last = holding.orders[0];
+  const recentBuy = last && last.action.toLowerCase() === "buy" && last.date && daysSince(last.date) <= 14;
+  const away = holding.stock?.away52wH;
+  const nearHigh = away != null && away >= 0 && away <= 5;
+  const weak = holding.stock
+    && holding.stock.wkChange != null
+    && holding.stock.mnChange != null
+    && Number(holding.stock.wkChange) < 0
+    && Number(holding.stock.mnChange) < 0;
+
+  if (recentBuy && Math.abs(pct) < 15) return { key: "new", label: "Just bought" };
+  if (pct > 15 && nearHigh) return { key: "book", label: "Book partial" };
+  if (pct > 15) return { key: "profit", label: "In profit" };
+  if (pct < -20 && weak) return { key: "review", label: "Review" };
+  if (pct < -20) return { key: "loss", label: "Under water" };
+  if (pct >= -8 && pct <= 8) return { key: "hold", label: "Hold" };
+  if (pct > 0) return { key: "profit", label: "In profit" };
+  return { key: "loss", label: "Under water" };
+}
+
+function buildHoldings(portfolioText, orderText, stocks) {
+  const bySymbol = new Map();
+  rowsToObjects(orderText).forEach((row) => {
+    const symbol = String(row.Stock || "").trim().toUpperCase();
+    const date = parseOrderDate(row.Date);
+    if (!symbol || !date) return;
+    const order = {
+      symbol,
+      date,
+      action: String(row.Action || "").trim(),
+      qty: parseMoney(row.Qty),
+      price: parseMoney(row.Price),
+      value: parseMoney(row["Trade Value"]),
+      charges: parseMoney(row["Brokerage Incl. Taxes"]),
+      exchange: String(row.Exchange || "").trim()
+    };
+    if (!bySymbol.has(symbol)) bySymbol.set(symbol, []);
+    bySymbol.get(symbol).push(order);
+  });
+  for (const list of bySymbol.values()) {
+    list.sort((left, right) => right.date - left.date);
+  }
+
+  return rowsToObjects(portfolioText).map((row) => {
+    const symbol = String(row["Stock Symbol"] || "").trim();
+    const company = String(row["Company Name"] || "").trim();
+    if (!symbol || !company) return null;
+    const stock = matchStock(company, stocks);
+    const orders = ordersFor(company, stock, bySymbol);
+    const holding = {
+      symbol,
+      company,
+      isin: String(row["ISIN Code"] || "").trim(),
+      qty: parseMoney(row.Qty),
+      avgCost: parseMoney(row["Average Cost Price"]),
+      price: parseMoney(row["Current Market Price"]),
+      dayPct: parseMoney(row["% Change over prev close"]),
+      costValue: parseMoney(row["Value At Cost"]),
+      marketValue: parseMoney(row["Value At Market Price"]),
+      realized: parseMoney(row["Realized Profit / Loss"]),
+      unrealized: parseMoney(row["Unrealized Profit/Loss"]),
+      unrealizedPct: parseMoney(row["Unrealized Profit/Loss %"]),
+      stock,
+      orders
+    };
+    holding.status = statusOf(holding);
+    return holding;
+  }).filter(Boolean);
+}
+
+function formatInr(value, digits = 0) {
+  if (value == null || Number.isNaN(Number(value))) return "—";
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits
+  }).format(Number(value));
+}
+
+function formatSigned(value, digits = 2) {
+  if (value == null || Number.isNaN(Number(value))) return "—";
+  const number = Number(value);
+  const formatted = new Intl.NumberFormat("en-IN", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits
+  }).format(Math.abs(number));
+  if (number > 0) return `+${formatted}`;
+  if (number < 0) return `−${formatted}`;
+  return formatted;
+}
+
+function formatPct(value, digits = 2) {
+  const text = formatSigned(value, digits);
+  return text === "—" ? text : `${text}%`;
+}
+
+function formatPlain(value, digits = 2) {
+  if (value == null || Number.isNaN(Number(value))) return "—";
+  return new Intl.NumberFormat("en-IN", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits
+  }).format(Number(value));
+}
+
+function formatWhen(date) {
+  if (!date) return "—";
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function pnlClass(value) {
+  if (value == null || Number(value) === 0) return "";
+  return Number(value) > 0 ? "pnl-up" : "pnl-down";
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function chartUrl(sid) {
+  return `https://www.tickertape.in/stocks/${encodeURIComponent(sid)}?chartScope=1mo`;
+}
+
+function passesFilter(holding) {
+  if (state.status === "profit") return holding.status.key === "profit" || holding.status.key === "book";
+  if (state.status !== "all" && holding.status.key !== state.status) return false;
+  if (!state.query) return true;
+  const stock = holding.stock;
+  const haystack = `${holding.company} ${holding.symbol} ${stock?.ticker || ""} ${stock?.sector || ""}`.toLowerCase();
+  return haystack.includes(state.query);
+}
+
+function sortValue(holding) {
+  const stock = holding.stock;
+  switch (state.sortKey) {
+    case "company": return holding.company.toLowerCase();
+    case "qty": return holding.qty;
+    case "avgCost": return holding.avgCost;
+    case "price": return holding.price;
+    case "marketValue": return holding.marketValue;
+    case "unrealized": return holding.unrealized;
+    case "unrealizedPct": return holding.unrealizedPct;
+    case "dayPct": return holding.dayPct;
+    case "realized": return holding.realized;
+    case "cap": return stock?.marketCapLabel ? stock.marketCapLabel.toLowerCase() : null;
+    case "sector": return stock?.sector ? stock.sector.toLowerCase() : null;
+    case "away52w": return stock?.away52wH ?? null;
+    case "status": return statusRank[holding.status.key] ?? 9;
+    case "lastTrade": return holding.orders[0]?.date?.getTime() ?? null;
+    default: return null;
+  }
+}
+
+function compare(left, right) {
+  const a = sortValue(left);
+  const b = sortValue(right);
+  if (a === b) return left.company.localeCompare(right.company);
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return a > b ? state.sortDir : -state.sortDir;
+}
+
+function paintSummary(list) {
+  const cost = list.reduce((sum, holding) => sum + (holding.costValue || 0), 0);
+  const market = list.reduce((sum, holding) => sum + (holding.marketValue || 0), 0);
+  const unreal = list.reduce((sum, holding) => sum + (holding.unrealized || 0), 0);
+  const real = list.reduce((sum, holding) => sum + (holding.realized || 0), 0);
+  const unrealPct = cost ? (unreal / cost) * 100 : null;
+  document.querySelector("#sum-cost").textContent = formatInr(cost);
+  document.querySelector("#sum-market").textContent = formatInr(market);
+  document.querySelector("#sum-unreal").textContent = formatInr(unreal);
+  document.querySelector("#sum-unreal-pct").textContent = unrealPct == null ? "—" : `${formatSigned(unrealPct, 2)}%`;
+  document.querySelector("#sum-real").textContent = formatInr(real);
+  document.querySelector("#card-unreal").classList.toggle("up", unreal > 0);
+  document.querySelector("#card-unreal").classList.toggle("down", unreal < 0);
+  document.querySelector("#card-real").classList.toggle("up", real > 0);
+  document.querySelector("#card-real").classList.toggle("down", real < 0);
+}
+
+function paintChips() {
+  const box = document.querySelector("#chips");
+  box.replaceChildren(...chips.map((chip) => {
+    const count = chip.key === "all"
+      ? state.holdings.length
+      : chip.key === "profit"
+        ? state.holdings.filter((holding) => holding.status.key === "profit" || holding.status.key === "book").length
+        : state.holdings.filter((holding) => holding.status.key === chip.key).length;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "chip";
+    button.dataset.status = chip.key;
+    button.setAttribute("aria-pressed", String(state.status === chip.key));
+    button.textContent = `${chip.label} ${count}`;
+    button.addEventListener("click", () => {
+      state.status = chip.key;
+      render();
+    });
+    return button;
+  }));
+}
+
+function showDetail(holding) {
+  const panel = document.querySelector("#detail");
+  panel.hidden = false;
+  document.querySelector("#detail-title").textContent = holding.company;
+  const ticker = holding.stock?.ticker ? ` · ${holding.stock.ticker}` : "";
+  document.querySelector("#detail-meta").textContent = `${holding.symbol}${ticker} · ${formatPlain(holding.qty, 0)} shares · avg ${formatInr(holding.avgCost, 2)}`;
+  const stock = holding.stock;
+  const metrics = [
+    ["Status", holding.status.label],
+    ["Unrealized", formatPct(holding.unrealizedPct, 2)],
+    ["Realized", formatInr(holding.realized)],
+    ["Cap", stock?.marketCapLabel || "—"],
+    ["Sector", stock?.sector || "—"],
+    ["PE", stock ? formatPlain(stock.pe, 1) : "—"],
+    ["Week %", stock ? formatPct(stock.wkChange, 2) : "—"],
+    ["Month %", stock ? formatPct(stock.mnChange, 2) : "—"],
+    ["Away 52w high", stock && stock.away52wH != null ? `${formatPlain(stock.away52wH, 1)}%` : "—"]
+  ];
+  const metricRow = document.querySelector("#detail-metrics");
+  metricRow.replaceChildren(...metrics.map(([label, value]) => {
+    const item = document.createElement("div");
+    item.className = "metric";
+    item.innerHTML = `<span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>`;
+    return item;
+  }));
+  if (stock?.sid) {
+    const link = document.createElement("a");
+    link.className = "metric linkish";
+    link.href = chartUrl(stock.sid);
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.innerHTML = "<span>Chart</span><strong>Open</strong>";
+    metricRow.append(link);
+  }
+  const body = document.querySelector("#trade-rows");
+  if (!holding.orders.length) {
+    body.innerHTML = `<tr><td colspan="7">No matching trades in the order book.</td></tr>`;
+    return;
+  }
+  body.replaceChildren(...holding.orders.map((order) => {
+    const row = document.createElement("tr");
+    const actionClass = order.action.toLowerCase() === "sell" ? "action-sell" : "action-buy";
+    row.innerHTML = `<td>${escapeHtml(formatWhen(order.date))}</td><td class="${actionClass}">${escapeHtml(order.action)}</td><td class="num">${formatPlain(order.qty, 0)}</td><td class="num">${formatInr(order.price, 2)}</td><td class="num">${formatInr(order.value, 2)}</td><td class="num">${formatInr(order.charges, 2)}</td><td>${escapeHtml(order.exchange)}</td>`;
+    return row;
+  }));
+}
+
+function hideDetail() {
+  state.selected = "";
+  document.querySelector("#detail").hidden = true;
+  document.querySelectorAll("#hold-rows tr.is-selected").forEach((row) => row.classList.remove("is-selected"));
+}
+
+function render() {
+  paintChips();
+  const visible = state.holdings.filter(passesFilter).sort(compare);
+  const linked = state.holdings.filter((holding) => holding.stock).length;
+  document.querySelector("#status").textContent = `${visible.length} of ${state.holdings.length} · ${linked} linked to the stock table`;
+
+  document.querySelectorAll("#hold-heads th").forEach((header) => {
+    header.removeAttribute("aria-sort");
+    if (header.dataset.key === state.sortKey) {
+      header.setAttribute("aria-sort", state.sortDir > 0 ? "ascending" : "descending");
+    }
+  });
+
+  const body = document.querySelector("#hold-rows");
+  if (!visible.length) {
+    body.innerHTML = `<tr><td class="empty" colspan="${columns.length}">No matching holdings.</td></tr>`;
+    return;
+  }
+
+  body.replaceChildren(...visible.map((holding) => {
+    const row = document.createElement("tr");
+    if (holding.symbol === state.selected) row.classList.add("is-selected");
+    const stock = holding.stock;
+    const last = holding.orders[0];
+    const lastLabel = last ? `${last.action} · ${formatWhen(last.date)}` : "—";
+    const booked = holding.realized ? `<span class="pill booked">Booked</span>` : "";
+    const ticker = stock?.ticker ? ` · ${escapeHtml(stock.ticker)}` : "";
+    row.innerHTML = `
+      <td><span class="hold-name"><strong>${escapeHtml(holding.company)}</strong><small>${escapeHtml(holding.symbol)}${ticker}</small></span></td>
+      <td class="num">${formatPlain(holding.qty, 0)}</td>
+      <td class="num">${formatInr(holding.avgCost, 2)}</td>
+      <td class="num">${formatInr(holding.price, 2)}</td>
+      <td class="num">${formatInr(holding.marketValue)}</td>
+      <td class="num ${pnlClass(holding.unrealized)}">${formatInr(holding.unrealized)}</td>
+      <td class="num ${pnlClass(holding.unrealizedPct)}">${formatPct(holding.unrealizedPct, 2)}</td>
+      <td class="num ${pnlClass(holding.dayPct)}">${formatPct(holding.dayPct, 2)}</td>
+      <td class="num ${pnlClass(holding.realized)}">${formatInr(holding.realized)}</td>
+      <td>${escapeHtml(stock?.marketCapLabel || "—")}</td>
+      <td>${escapeHtml(stock?.sector || "—")}</td>
+      <td class="num">${stock && stock.away52wH != null ? `${formatPlain(stock.away52wH, 1)}%` : "—"}</td>
+      <td><span class="pills"><span class="pill ${holding.status.key}">${escapeHtml(holding.status.label)}</span>${booked}</span></td>
+      <td>${escapeHtml(lastLabel)}</td>`;
+    row.addEventListener("click", () => {
+      if (state.selected === holding.symbol) {
+        hideDetail();
+        return;
+      }
+      state.selected = holding.symbol;
+      render();
+      showDetail(holding);
+    });
+    return row;
+  }));
+
+  if (state.selected) {
+    const selected = visible.find((holding) => holding.symbol === state.selected);
+    if (selected) showDetail(selected);
+    else hideDetail();
+  }
+}
+
+function sortBy(header) {
+  const key = header.dataset.key;
+  if (state.sortKey === key) {
+    state.sortDir *= -1;
+  } else {
+    state.sortKey = key;
+    state.sortDir = 1;
+  }
+  render();
+}
+
+async function load() {
+  const status = document.querySelector("#status");
+  status.textContent = "Loading portfolio…";
+  try {
+    const [portfolioRes, orderRes, stockRes] = await Promise.all([
+      fetch(PORTFOLIO_URL),
+      fetch(ORDERS_URL),
+      fetch("/api/v1/stocks")
+    ]);
+    if (!portfolioRes.ok || !orderRes.ok || !stockRes.ok) {
+      throw new Error("Could not load portfolio, orders, or stocks");
+    }
+    const [portfolioText, orderText, stocks] = await Promise.all([
+      portfolioRes.text(),
+      orderRes.text(),
+      stockRes.json()
+    ]);
+    state.holdings = buildHoldings(portfolioText, orderText, stocks);
+    paintSummary(state.holdings);
+    render();
+  } catch (error) {
+    status.textContent = error.message;
+  }
+}
+
+if (typeof document !== "undefined" && document.querySelector("#hold-rows")) {
+  const heads = document.querySelector("#hold-heads");
+  heads.replaceChildren(...columns.map((column) => {
+    const header = document.createElement("th");
+    header.dataset.key = column.key;
+    header.dataset.type = column.type;
+    header.textContent = column.label;
+    if (column.type === "number") header.classList.add("num");
+    header.addEventListener("click", () => sortBy(header));
+    return header;
+  }));
+  document.querySelector("#filter").addEventListener("input", (event) => {
+    state.query = event.target.value.trim().toLowerCase();
+    render();
+  });
+  document.querySelector("#detail-close").addEventListener("click", hideDetail);
+  load();
+}

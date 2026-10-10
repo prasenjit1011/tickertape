@@ -10,4 +10,9 @@ public class StockViewController {
     public String stocksPage() {
         return "forward:/stocks.html";
     }
+
+    @GetMapping("/portfolio")
+    public String portfolioPage() {
+        return "forward:/portfolio.html";
+    }
 }
