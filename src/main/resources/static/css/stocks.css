@@ -82,14 +82,17 @@ body.stocks-page .icon-btn svg {
 body.stocks-page .status { margin: 0; min-height: 0; white-space: nowrap; }
 
 body.stocks-page .yearly-panel {
-  --yearly-row: 2.25rem;
+  --yearly-row: 2.15rem;
   flex: 0 1 auto;
   min-height: 0;
-  max-height: 100%;
+  max-height: 46vh;
   display: flex;
   flex-direction: column;
-  border-bottom: 1px solid #2d6a56;
-  background: #0f2e26;
+  margin: 0.7rem 0.75rem 0;
+  background: #0c241c;
+  border: 1px solid #2d6a56;
+  border-radius: 0.85rem;
+  overflow: hidden;
 }
 
 body.stocks-page .yearly-panel[hidden] { display: none; }
@@ -99,35 +102,126 @@ body.stocks-page .yearly-bar {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.55rem 0.9rem;
+  padding: 0.75rem 0.95rem 0.35rem;
 }
 
-body.stocks-page .yearly-bar h2 { margin: 0; font-size: 1rem; }
-
-body.stocks-page .range-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  min-height: 0;
-}
-
-body.stocks-page .range-col {
+body.stocks-page .yearly-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.7rem 1.5rem;
   min-width: 0;
+}
+
+body.stocks-page .yearly-identity {
+  min-width: 0;
+}
+
+body.stocks-page .yearly-bar h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.2;
+}
+
+body.stocks-page .yearly-price {
+  margin: 0.12rem 0 0;
+  font-size: 1.02rem;
+  font-variant-numeric: tabular-nums;
+}
+
+body.stocks-page .yearly-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem 1.15rem;
+  margin: 0;
+}
+
+body.stocks-page .yearly-stats div {
   display: flex;
   flex-direction: column;
+  gap: 0.08rem;
 }
 
-body.stocks-page .range-col + .range-col {
-  border-left: 1px solid #2d6a56;
+body.stocks-page .yearly-stats dt {
+  margin: 0;
+  color: #b7d4c6;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
+
+body.stocks-page .yearly-stats dd {
+  margin: 0;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+body.stocks-page #yearly-close {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.8rem;
+}
+
+body.stocks-page .range-grid {
+  display: flex;
+  gap: 0.65rem;
+  min-height: 0;
+  padding: 0.15rem 0.75rem 0.75rem;
+}
+
+body.stocks-page .range-grid.has-trades .range-col:last-child:not(.is-min) {
+  flex: 1.15 1 0;
+}
+
+body.stocks-page #trade-col[hidden] { display: none; }
+
+body.stocks-page .range-col {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #12382d;
+  border: 1px solid #245745;
+  border-radius: 0.7rem;
+  overflow: hidden;
+}
+
+body.stocks-page .range-col.is-min {
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+body.stocks-page .range-col.is-min .yearly-wrap { display: none; }
+
+body.stocks-page .range-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding-right: 0.35rem;
+}
+
+body.stocks-page .range-min {
+  padding: 0.15rem 0.4rem;
+}
+
+body.stocks-page .range-min svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+body.stocks-page .range-col.is-min .icon-min,
+body.stocks-page .range-col:not(.is-min) .icon-max { display: none; }
 
 body.stocks-page .range-label {
   margin: 0;
-  padding: 0 0.9rem 0.35rem;
-  font-size: 0.82rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  padding: 0.35rem 0.7rem 0.4rem 0.95rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #b7d4c6;
+  color: #8fd4b4;
 }
 
 body.stocks-page .yearly-wrap {
@@ -163,8 +257,13 @@ body.stocks-page .yearly-table th {
 }
 
 body.stocks-page .yearly-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+body.stocks-page #yearly-rows td:nth-child(2),
+body.stocks-page #monthly-rows td:nth-child(2) { color: #ffb4b4; }
+body.stocks-page #yearly-rows td:nth-child(3),
+body.stocks-page #monthly-rows td:nth-child(3) { color: #8fd4b4; }
 
 body.stocks-page .yearly-table tbody tr:nth-child(even) { background: #164536; }
+body.stocks-page .yearly-table tbody tr:hover { background: #1f5c48; }
 
 body.stocks-page .row-actions {
   display: flex;
@@ -176,6 +275,30 @@ body.stocks-page .table-wrap {
   flex: 1;
   min-height: 0;
   overflow: auto;
+}
+
+body.stocks-page.yearly-open .table-wrap {
+  flex: 0 0 120px;
+  height: 120px;
+  max-height: 120px;
+  min-height: 0;
+  overflow: auto;
+}
+
+body.stocks-page.yearly-open .yearly-panel {
+  flex: 1 1 0;
+  max-height: none;
+  min-height: 0;
+  margin-bottom: 0.7rem;
+}
+
+body.stocks-page.yearly-open .range-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+body.stocks-page.yearly-open .yearly-wrap {
+  max-height: none;
 }
 
 body.stocks-page table.data-table {
@@ -247,6 +370,9 @@ body.stocks-page .row-chart {
   font-size: 0.82rem;
 }
 
+body.stocks-page .pnl-up { color: #8fd4b4; }
+body.stocks-page .pnl-down { color: #ffb4b4; }
+
 body.stocks-page .data-table td { border-bottom-color: #245745; }
 body.stocks-page .data-table tbody tr:nth-child(even) { background: #164536; }
 body.stocks-page .data-table tbody tr:hover { background: #1f5c48; }
@@ -260,7 +386,10 @@ body.stocks-page .data-table tbody tr:hover { background: #1f5c48; }
 
   body.stocks-page .filter input { min-width: 0; width: 100%; }
 
-  body.stocks-page .range-grid { grid-template-columns: 1fr; }
+  body.stocks-page .range-grid,
+  body.stocks-page .range-grid.has-trades { flex-direction: column; }
 
-  body.stocks-page .range-col + .range-col { border-left: 0; border-top: 1px solid #2d6a56; }
+  body.stocks-page .range-col.is-min { align-self: stretch; }
+
+  body.stocks-page .range-col + .range-col { border-top: 0; }
 }

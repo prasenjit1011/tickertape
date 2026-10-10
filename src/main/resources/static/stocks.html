@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Stocks · Tickertape</title>
   <link rel="stylesheet" href="/css/products.css">
-  <link rel="stylesheet" href="/css/stocks.css?v=12">
+  <link rel="stylesheet" href="/css/stocks.css?v=22">
 </head>
 <body class="stocks-page">
   <header class="topbar">
@@ -51,6 +51,8 @@
         <a class="btn ghost" href="/products">Products</a>
       </form>
     </div>
+
+
     <div class="table-wrap">
       <table class="data-table">
         <thead>
@@ -60,23 +62,60 @@
       </table>
     </div>
 
+
     <section id="yearly-panel" class="yearly-panel" hidden>
       <div class="yearly-bar">
-        <h2 id="yearly-title">Yearly high and low</h2>
+        <div class="yearly-head">
+          <div class="yearly-identity">
+            <h2 id="yearly-title">Range</h2>
+          </div>
+          <dl class="yearly-stats">
+            <div>
+              <dt>Invested</dt>
+              <dd id="yearly-invested">—</dd>
+            </div>
+            <div>
+              <dt>Profit / loss</dt>
+              <dd id="yearly-pnl">—</dd>
+            </div>
+            <div>
+              <dt>P/L %</dt>
+              <dd id="yearly-pct">—</dd>
+            </div>
+            <div>
+              <dt>LTP</dt>
+              <dd id="yearly-price">—</dd>
+            </div>
+            <div>
+              <dt>Avg buy</dt>
+              <dd id="yearly-buy">—</dd>
+            </div>
+            <div>
+              <dt>Avg sell</dt>
+              <dd id="yearly-sell">—</dd>
+            </div>
+          </dl>
+        </div>
         <button id="yearly-close" class="btn ghost" type="button">Close</button>
       </div>
       <div class="range-grid">
         <div class="range-col">
-          <h3 class="range-label">Yearly</h3>
+          <div class="range-head">
+            <h3 class="range-label">Yearly</h3>
+            <button class="btn ghost icon-btn range-min" type="button" aria-expanded="true" aria-label="Minimize Yearly">
+              <svg class="icon-min" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 8h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <svg class="icon-max" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 4v8M4 8h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </button>
+          </div>
           <div class="yearly-wrap">
             <table class="yearly-table">
               <thead>
                 <tr>
                   <th>Year</th>
                   <th class="num">Low</th>
-                  <th>High</th>
-                  <th class="num">Low Date</th>
-                  <th>High Date</th>
+                  <th class="num">High</th>
+                  <th class="num">Low date</th>
+                  <th class="num">High date</th>
                 </tr>
               </thead>
               <tbody id="yearly-rows"></tbody>
@@ -84,27 +123,57 @@
           </div>
         </div>
         <div class="range-col">
-          <h3 class="range-label">Monthly</h3>
+          <div class="range-head">
+            <h3 class="range-label">Monthly</h3>
+            <button class="btn ghost icon-btn range-min" type="button" aria-expanded="true" aria-label="Minimize Monthly">
+              <svg class="icon-min" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 8h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <svg class="icon-max" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 4v8M4 8h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </button>
+          </div>
           <div class="yearly-wrap">
             <table class="yearly-table">
               <thead>
                 <tr>
                   <th>Month</th>
                   <th class="num">Low</th>
-                  <th>High</th>
-                  <th class="num">Low Date</th>
-                  <th>High Date</th>
+                  <th class="num">High</th>
+                  <th class="num">Low date</th>
+                  <th class="num">High date</th>
                 </tr>
               </thead>
               <tbody id="monthly-rows"></tbody>
             </table>
           </div>
         </div>
+        <div id="trade-col" class="range-col" hidden>
+          <div class="range-head">
+            <h3 class="range-label">Trades</h3>
+            <button class="btn ghost icon-btn range-min" type="button" aria-expanded="true" aria-label="Minimize Trades">
+              <svg class="icon-min" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 8h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <svg class="icon-max" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 4v8M4 8h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+          <div class="yearly-wrap">
+            <table class="yearly-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Action</th>
+                  <th class="num">Qty</th>
+                  <th class="num">Price</th>
+                  <th class="num">Value</th>
+                </tr>
+              </thead>
+              <tbody id="trade-rows"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </section>
+
     
   </main>
 
-  <script src="/js/stocks.js?v=18"></script>
+  <script src="/js/stocks.js?v=28"></script>
 </body>
 </html>

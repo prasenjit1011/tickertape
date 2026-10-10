@@ -109,7 +109,7 @@ public class StockPeerService {
 
     public List<MonthlyHighResponse> monthlyHighs(String sid) {
         Map<YearMonth, MonthBucket> byMonth = new HashMap<>();
-        for (TickertapeChartResponse.Point point : chartPoints(tickertapeClient.fetchChart(sid, "3y"))) {
+        for (TickertapeChartResponse.Point point : chartPoints(tickertapeClient.fetchChart(sid, "max"))) {
             if (point.getTs() == null || point.getLp() == null) {
                 continue;
             }
@@ -117,7 +117,7 @@ public class StockPeerService {
             byMonth.computeIfAbsent(month, ignored -> new MonthBucket()).accept(point.getTs(), point.getLp());
         }
         if (byMonth.isEmpty()) {
-            throw new UpstreamDataException("Tickertape 3y chart for '" + sid + "' did not include prices");
+            throw new UpstreamDataException("Tickertape chart for '" + sid + "' did not include prices");
         }
         return byMonth.entrySet().stream()
                 .sorted(Map.Entry.<YearMonth, MonthBucket>comparingByKey(Comparator.reverseOrder()))
