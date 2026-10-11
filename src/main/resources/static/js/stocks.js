@@ -20,7 +20,10 @@ function placeFilter() {
 }
 
 placeFilter();
-mobileBar.addEventListener("change", placeFilter);
+mobileBar.addEventListener("change", () => {
+  placeFilter();
+  if (state.stocks.length) render();
+});
 
 const searchToggle = document.querySelector(".search-icon");
 const searchClear = document.querySelector(".search-clear");
@@ -101,12 +104,10 @@ const columns = [
   { key: "sector", label: "Sector", type: "text" },
 
   { key: "marketCapLabel", label: "Cap label", type: "text" },
-  { key: "mrktCapRank", label: "Cap rank", type: "number", digits: 0 },
+  { key: "mrktCapRank", label: "Rank", type: "number", digits: 0 },
   { key: "marketCap", label: "Market cap", type: "number", digits: 0 },
   { key: "breco", label: "Forecast", type: "number" },
   { key: "pe", label: "PE", type: "number" },
-
-
 
   { key: "lastPrice", label: "Last price", type: "number", digits: 2 },
   { key: "change", label: "Change", type: "number", digits: 2 },
@@ -494,7 +495,9 @@ function render() {
     const row = document.createElement("tr");
     row.innerHTML = columns.map((column) => {
       if (column.key === "name") {
-        return `<td class="name-cell"><span>${escapeHtml(stock.name)}</span><span class="row-actions"><a class="btn ghost row-chart" href="${escapeHtml(chartUrl(stock.sid))}" target="_blank" rel="noopener">Chart</a><button type="button" class="btn ghost row-yearly" data-sid="${escapeHtml(stock.sid)}">Yearly</button><button type="button" class="btn ghost row-sync" data-sid="${escapeHtml(stock.sid)}">Sync</button></span></td>`;
+        const title = clipTitle(stock.name);
+        const tip = title === stock.name ? "" : ` title="${escapeHtml(stock.name)}"`;
+        return `<td class="name-cell"><span${tip}>${escapeHtml(title)}</span><span class="row-actions"><button type="button" class="btn ghost row-sync" data-sid="${escapeHtml(stock.sid)}" aria-label="Sync">${formatNumber(stock.lastPrice, 2)}</button><a class="btn ghost row-chart" href="${escapeHtml(chartUrl(stock.sid))}" target="_blank" rel="noopener">Chart</a><button type="button" class="btn ghost row-yearly" data-sid="${escapeHtml(stock.sid)}">Yearly</button></span></td>`;
       }
       if (column.key === "holdQty") {
         return `<td class="num">${stock.holdQty == null ? "—" : formatNumber(stock.holdQty, 0)}</td>`;
@@ -892,6 +895,13 @@ function formatSignedPct(value) {
 
 function chartUrl(sid) {
   return `https://www.tickertape.in/stocks/${encodeURIComponent(sid)}?chartScope=1mo`;
+}
+
+function clipTitle(value) {
+  const max = mobileBar.matches ? 20 : 30;
+  const text = String(value ?? "");
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 1)}…`;
 }
 
 function escapeHtml(value) {
