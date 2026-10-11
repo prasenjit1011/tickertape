@@ -379,11 +379,7 @@ body.stocks-page .status-label {
   text-transform: uppercase;
 }
 
-body.stocks-page .status-tags {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 0.28rem;
-}
+body.stocks-page .status-tags { display: none; }
 
 body.stocks-page .status-tag {
   padding: 0.16rem 0.45rem;
@@ -769,24 +765,31 @@ body.stocks-page .data-table tbody tr:hover { background: #1f5c48; }
 
   body.stocks-page .status-board { flex: 0 0 auto; }
 
-  body.stocks-page .status-tags {
-    flex-wrap: nowrap;
-    min-width: 0;
-    overflow: hidden;
-  }
-
   body.stocks-page .status-stat {
     min-width: 0;
     padding: 0.2rem 0.42rem 0.22rem;
   }
 
-  body.stocks-page .status-stat + .status-stat { display: none; }
+  body.stocks-page .status-stat.is-stored { display: none; }
 
   body.stocks-page .bar-controls {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: flex;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 0.35rem;
+  }
+
+  body.stocks-page .bar-controls .status {
+    order: 1;
+    flex: 0 0 auto;
+    margin-left: 0;
+  }
+
+  body.stocks-page .sync-cluster { order: 2; flex: 1 1 auto; }
+
+  body.stocks-page .bar-controls > .tool-group:not(.sync-cluster) {
+    order: 3;
+    flex: 0 0 auto;
   }
 
   body.stocks-page .sync-cluster,
@@ -916,11 +919,35 @@ body.stocks-page .data-table tbody tr:hover { background: #1f5c48; }
 }
 
 @media (max-width: 720px) {
+  body.stocks-page .toolbar .brand {
+    flex-wrap: nowrap;
+    gap: 0.35rem;
+  }
+
   body.stocks-page .toolbar .mark { order: 1; }
-  body.stocks-page .toolbar h1 { order: 2; }
+
+  body.stocks-page .toolbar h1 {
+    order: 2;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 0.95rem;
+    text-overflow: ellipsis;
+  }
+
+  body.stocks-page .status-board { width: auto; }
+
+  body.stocks-page .status-stat {
+    flex: 0 0 auto;
+    padding: 0.16rem 0.32rem 0.18rem;
+  }
+
+  body.stocks-page .status-count { font-size: 0.78rem; }
+
+  body.stocks-page .status-label { font-size: 0.52rem; }
 
   body.stocks-page .toolbar .filter {
-    order: 3;
+    order: 4;
     display: flex;
     align-items: center;
     gap: 0.28rem;
@@ -931,14 +958,13 @@ body.stocks-page .data-table tbody tr:hover { background: #1f5c48; }
     margin-left: auto;
   }
 
-  body.stocks-page .toolbar .status {
-    order: 4;
-    flex-wrap: nowrap;
-    margin-left: 0.35rem;
-    white-space: nowrap;
-  }
+  body.stocks-page .page-nav { order: 5; margin-left: 0; }
 
-  body.stocks-page .status-tags { display: none; }
+  body.stocks-page .menu-toggle {
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+  }
 
   body.stocks-page .stock-details {
     display: flex;

@@ -1,5 +1,5 @@
-const PORTFOLIO_URL = "/public/8506181188_PortFolioEqtSummary.csv";
-const ORDERS_URL = "/public/orderBook_Equity_1791616753390.csv";
+const PORTFOLIO_URL = "/api/v1/portfolio/holdings";
+const ORDERS_URL = "/api/v1/portfolio/orders";
 
 const STOP = new Set([
   "LTD", "LIMITED", "INDIA", "THE", "AND", "OF", "CO", "COMPANY",
@@ -44,75 +44,10 @@ const state = {
   selected: ""
 };
 
-function parseCsv(text) {
-  const rows = [];
-  let row = [];
-  let cell = "";
-  let quoted = false;
-  const source = String(text).replace(/^\uFEFF/, "");
-  for (let i = 0; i < source.length; i++) {
-    const ch = source[i];
-    if (quoted) {
-      if (ch === '"') {
-        if (source[i + 1] === '"') {
-          cell += '"';
-          i += 1;
-        } else {
-          quoted = false;
-        }
-      } else {
-        cell += ch;
-      }
-    } else if (ch === '"') {
-      quoted = true;
-    } else if (ch === ",") {
-      row.push(cell);
-      cell = "";
-    } else if (ch === "\n") {
-      row.push(cell);
-      rows.push(row);
-      row = [];
-      cell = "";
-    } else if (ch !== "\r") {
-      cell += ch;
-    }
-  }
-  if (cell.length || row.length) {
-    row.push(cell);
-    rows.push(row);
-  }
-  return rows.filter((item) => item.some((value) => String(value).trim()));
-}
-
-function parseMoney(value) {
-  const raw = String(value ?? "").trim();
-  if (!raw) return null;
-  const negative = raw.startsWith("(") || raw.startsWith("-");
-  const num = Number(raw.replace(/[(),%\s+]/g, "").replace(/^-/, ""));
-  if (!Number.isFinite(num)) return null;
-  return negative ? -Math.abs(num) : num;
-}
-
 function parseOrderDate(value) {
-  const match = String(value ?? "").trim().match(/^(\d{2})-([A-Za-z]{3})-(\d{2})$/);
-  if (!match) return null;
-  const months = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
-  const month = months[match[2].toLowerCase()];
-  if (month === undefined) return null;
-  return new Date(2000 + Number(match[3]), month, Number(match[1]));
-}
-
-function rowsToObjects(text) {
-  const table = parseCsv(text);
-  if (!table.length) return [];
-  const headers = table[0].map((header) => header.trim());
-  return table.slice(1).map((row) => {
-    const record = {};
-    headers.forEach((header, index) => {
-      if (header) record[header] = row[index] ?? "";
-    });
-    return record;
-  });
+  const iso = String(value ?? "").trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!iso) return null;
+  return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
 }
 
 function tokens(name) {
@@ -231,21 +166,21 @@ function statusOf(holding) {
   return { key: "loss", label: "Under water" };
 }
 
-function buildHoldings(portfolioText, orderText, stocks) {
+function buildHoldings(portfolioRows, orderRows, stocks) {
   const bySymbol = new Map();
-  rowsToObjects(orderText).forEach((row) => {
-    const symbol = String(row.Stock || "").trim().toUpperCase();
-    const date = parseOrderDate(row.Date);
+  orderRows.forEach((row) => {
+    const symbol = String(row.symbol || "").trim().toUpperCase();
+    const date = parseOrderDate(row.date);
     if (!symbol || !date) return;
     const order = {
       symbol,
       date,
-      action: String(row.Action || "").trim(),
-      qty: parseMoney(row.Qty),
-      price: parseMoney(row.Price),
-      value: parseMoney(row["Trade Value"]),
-      charges: parseMoney(row["Brokerage Incl. Taxes"]),
-      exchange: String(row.Exchange || "").trim()
+      action: String(row.action || "").trim(),
+      qty: row.qty,
+      price: row.price,
+      value: row.value,
+      charges: row.charges,
+      exchange: String(row.exchange || "").trim()
     };
     if (!bySymbol.has(symbol)) bySymbol.set(symbol, []);
     bySymbol.get(symbol).push(order);
@@ -254,25 +189,25 @@ function buildHoldings(portfolioText, orderText, stocks) {
     list.sort((left, right) => right.date - left.date);
   }
 
-  return rowsToObjects(portfolioText).map((row) => {
-    const symbol = String(row["Stock Symbol"] || "").trim();
-    const company = String(row["Company Name"] || "").trim();
+  return portfolioRows.map((row) => {
+    const symbol = String(row.symbol || "").trim();
+    const company = String(row.company || "").trim();
     if (!symbol || !company) return null;
     const stock = matchStock(company, stocks);
     const orders = ordersFor(company, stock, bySymbol);
     const holding = {
       symbol,
       company,
-      isin: String(row["ISIN Code"] || "").trim(),
-      qty: parseMoney(row.Qty),
-      avgCost: parseMoney(row["Average Cost Price"]),
-      price: parseMoney(row["Current Market Price"]),
-      dayPct: parseMoney(row["% Change over prev close"]),
-      costValue: parseMoney(row["Value At Cost"]),
-      marketValue: parseMoney(row["Value At Market Price"]),
-      realized: parseMoney(row["Realized Profit / Loss"]),
-      unrealized: parseMoney(row["Unrealized Profit/Loss"]),
-      unrealizedPct: parseMoney(row["Unrealized Profit/Loss %"]),
+      isin: String(row.isin || "").trim(),
+      qty: row.qty,
+      avgCost: row.avgCost,
+      price: row.price,
+      dayPct: row.dayPct,
+      costValue: row.costValue,
+      marketValue: row.marketValue,
+      realized: row.realized,
+      unrealized: row.unrealized,
+      unrealizedPct: row.unrealizedPct,
       stock,
       orders
     };
@@ -558,12 +493,12 @@ async function load() {
     if (!portfolioRes.ok || !orderRes.ok || !stockRes.ok) {
       throw new Error("Could not load portfolio, orders, or stocks");
     }
-    const [portfolioText, orderText, stocks] = await Promise.all([
-      portfolioRes.text(),
-      orderRes.text(),
+    const [portfolioRows, orderRows, stocks] = await Promise.all([
+      portfolioRes.json(),
+      orderRes.json(),
       stockRes.json()
     ]);
-    state.holdings = buildHoldings(portfolioText, orderText, stocks);
+    state.holdings = buildHoldings(portfolioRows, orderRows, stocks);
     paintSummary(state.holdings);
     render();
   } catch (error) {

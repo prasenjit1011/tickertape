@@ -7,15 +7,18 @@ const filterLabel = filter.closest(".filter");
 const pageNav = document.querySelector(".page-nav");
 const brand = document.querySelector(".brand");
 const controls = document.querySelector(".bar-controls");
+const syncCluster = document.querySelector(".sync-cluster");
 const mobileBar = window.matchMedia("(max-width: 720px)");
 
 function placeFilter() {
   if (mobileBar.matches) {
     brand.append(filterLabel);
     brand.append(pageNav);
+    syncCluster.before(status);
   } else {
     controls.prepend(filterLabel);
     controls.append(pageNav);
+    brand.append(status);
   }
 }
 
@@ -61,21 +64,15 @@ function paintStatus(text, tone) {
   if (count) {
     const board = document.createElement("span");
     board.className = "status-board";
-    [
-      [count[1], "shown"],
-      [count[2], "stored"]
-    ].forEach(([value, label]) => {
-      const stat = document.createElement("span");
-      stat.className = "status-stat";
-      const strong = document.createElement("span");
-      strong.className = "status-count";
-      strong.textContent = value;
-      const caption = document.createElement("span");
-      caption.className = "status-label";
-      caption.textContent = label;
-      stat.append(strong, caption);
-      board.append(stat);
-    });
+    appendStatusStat(board, count[1], "shown");
+    appendStatusStat(board, count[2], "stored", "is-stored");
+    const live = bookLiveTotal();
+    if (live != null) {
+      const amount = appendStatusStat(board, formatInr(live), "live", "is-live");
+      if (live > 0) amount.classList.add("pnl-up");
+      else if (live < 0) amount.classList.add("pnl-down");
+      status.setAttribute("aria-label", `${text}, live ${formatInr(live)}`);
+    }
     status.append(board);
 
     const tags = count[3] ? count[3].split(" · ").filter(Boolean) : [];
@@ -97,6 +94,31 @@ function paintStatus(text, tone) {
   message.className = "status-msg";
   message.textContent = text;
   status.append(message);
+}
+
+function appendStatusStat(board, value, label, extraClass) {
+  const stat = document.createElement("span");
+  stat.className = extraClass ? `status-stat ${extraClass}` : "status-stat";
+  const strong = document.createElement("span");
+  strong.className = "status-count";
+  strong.textContent = value;
+  const caption = document.createElement("span");
+  caption.className = "status-label";
+  caption.textContent = label;
+  stat.append(strong, caption);
+  board.append(stat);
+  return strong;
+}
+
+function bookLiveTotal() {
+  let live = 0;
+  let count = 0;
+  for (const stock of state.stocks) {
+    if (stock.holdLivePnl == null) continue;
+    live += stock.holdLivePnl;
+    count += 1;
+  }
+  return count ? live : null;
 }
 
 const columns = [
@@ -130,7 +152,7 @@ const columns = [
 
   { key: "holdQty", label: "Qty", type: "number", digits: 0 },
   { key: "holdInvested", label: "Invested", type: "number", digits: 0 },
-  { key: "holdPnl", label: "Profit / loss", type: "number", digits: 0 },
+  { key: "holdLivePnl", label: "Live P/L", type: "number", digits: 0 },
   { key: "holdPct", label: "P/L %", type: "number", digits: 2 },
   { key: "holdAvgCost", label: "Avg buy price", type: "number", digits: 2 },
   { key: "holdAvgSell", label: "Sell price", type: "number", digits: 2 },
@@ -192,8 +214,9 @@ const state = {
   sortKey: "mrktCapRank",
   sortType: "number",
   sortDir: 1,
-  portfolioText: "",
-  orderText: "",
+  holdingsLoaded: false,
+  holdings: [],
+  ordersLoaded: false,
   ordersBySymbol: new Map()
 };
 
@@ -476,6 +499,9 @@ function sortBy(header) {
 }
 
 function render() {
+  state.stocks.forEach((stock) => {
+    stock.holdLivePnl = livePnl(stock);
+  });
   const visible = state.stocks
     .filter((stock) => {
       if (state.sid && stock.sid !== state.sid) return false;
@@ -518,7 +544,7 @@ function render() {
         return `<td class="num">${stock.holdQty == null ? "—" : formatNumber(stock.holdQty, 0)}</td>`;
       }
       if (column.key === "holdInvested") return `<td class="num">${formatInr(stock.holdInvested)}</td>`;
-      if (column.key === "holdPnl") return pnlCell(stock.holdPnl, false);
+      if (column.key === "holdLivePnl") return pnlCell(stock.holdLivePnl, false);
       if (column.key === "holdPct") return pnlCell(stock.holdPct, true);
       if (column.key === "holdAvgCost" || column.key === "holdAvgSell") {
         return `<td class="num">${formatInrDigits(stock[column.key], 2)}</td>`;
@@ -586,32 +612,29 @@ async function readError(response) {
 }
 
 async function ensureOrders() {
-  if (state.orderText) return;
+  if (state.ordersLoaded) return;
   try {
-    const response = await fetch("/public/orderBook_Equity_1791616753390.csv");
+    const response = await fetch("/api/v1/portfolio/orders");
     if (!response.ok) return;
-    state.orderText = await response.text();
-    state.ordersBySymbol = groupOrders(state.orderText);
+    state.ordersBySymbol = groupOrders(await response.json());
+    state.ordersLoaded = true;
   } catch {
     state.ordersBySymbol = new Map();
   }
 }
 
-function groupOrders(text) {
-  const table = parseHoldingCsv(text);
-  const headers = table[0]?.map((header) => header.trim()) || [];
-  const index = Object.fromEntries(headers.map((header, position) => [header, position]));
+function groupOrders(orders) {
   const bySymbol = new Map();
-  table.slice(1).forEach((row) => {
-    const symbol = String(row[index.Stock] || "").trim().toUpperCase();
-    const date = parseOrderDate(row[index.Date]);
+  orders.forEach((row) => {
+    const symbol = String(row.symbol || "").trim().toUpperCase();
+    const date = parseOrderDate(row.date);
     if (!symbol || !date) return;
     const order = {
       date,
-      action: String(row[index.Action] || "").trim(),
-      qty: parseHoldingMoney(row[index.Qty]),
-      price: parseHoldingMoney(row[index.Price]),
-      value: parseHoldingMoney(row[index["Trade Value"]])
+      action: String(row.action || "").trim(),
+      qty: row.qty,
+      price: row.price,
+      value: row.value
     };
     if (!bySymbol.has(symbol)) bySymbol.set(symbol, []);
     bySymbol.get(symbol).push(order);
@@ -645,14 +668,15 @@ function fillYearlyHead(stock) {
   document.querySelector("#yearly-qty").textContent = formatNumber(stock?.holdQty, 0);
   document.querySelector("#yearly-price").textContent = formatInrDigits(stock?.lastPrice, 2);
   document.querySelector("#yearly-invested").textContent = formatInr(stock?.holdInvested);
-  setPnlText(document.querySelector("#yearly-pnl"), stock?.holdPnl, false);
+  if (stock) stock.holdLivePnl = livePnl(stock);
+  setPnlText(document.querySelector("#yearly-live"), stock?.holdLivePnl, false);
   setPnlText(document.querySelector("#yearly-pct"), stock?.holdPct, true);
   document.querySelector("#yearly-buy").textContent = "—";
   document.querySelector("#yearly-sell").textContent = "—";
 }
 
 const detailGroups = [
-  { title: "Holding", keys: ["holdQty", "holdInvested", "holdPnl", "holdPct", "holdAvgCost", "holdAvgSell"] },
+  { title: "Holding", keys: ["holdQty", "holdInvested", "holdLivePnl", "holdPct", "holdAvgCost", "holdAvgSell"] },
   { title: "Returns", keys: ["wkChange", "mnChange", "wkRange", "mnRange", "4wpct", "52wpct", "away52wH", "away52wL", "52wHigh", "52wLow"] },
   { title: "Size", keys: ["marketCapLabel", "mrktCapRank", "marketCap", "mrktCapf"] },
   { title: "Valuation", keys: ["pe", "ttmPe", "pb", "pbr", "eps", "bps", "roe", "divYield", "divDps", "breco", "risk", "apef"] },
@@ -664,7 +688,7 @@ const detailGroups = [
 ];
 
 const percentKeys = new Set(["dyChange", "wkChange", "mnChange", "4wpct", "52wpct", "away52wH", "away52wL", "wkRange", "mnRange", "divYield", "roe", "holdPct", "inddy", "expenseRatio", "trackErr", "indExpenseRatio", "indTrackErr"]);
-const toneKeys = new Set(["change", "dyChange", "wkChange", "mnChange", "4wpct", "52wpct", "holdPnl", "holdPct"]);
+const toneKeys = new Set(["change", "dyChange", "wkChange", "mnChange", "4wpct", "52wpct", "holdPnl", "holdLivePnl", "holdPct"]);
 
 function fillStockDetails(stock) {
   const list = document.querySelector("#stock-details");
@@ -730,7 +754,7 @@ function paintTone(value, raw, key) {
 
 function detailText(stock, column) {
   const value = stock[column.key];
-  if (column.key === "holdPnl") return formatInr(value);
+  if (column.key === "holdPnl" || column.key === "holdLivePnl") return formatInr(value);
   if (column.key === "holdInvested") return formatInr(value);
   if (column.key === "holdAvgCost" || column.key === "holdAvgSell") return formatInrDigits(value, 2);
   if (column.key === "holdQty") return value == null || Number.isNaN(Number(value)) ? "—" : formatNumber(value, 0);
@@ -816,12 +840,9 @@ function fillTrades(stock) {
 }
 
 function parseOrderDate(value) {
-  const match = String(value ?? "").trim().match(/^(\d{2})-([A-Za-z]{3})-(\d{2})$/);
-  if (!match) return null;
-  const months = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
-  const month = months[match[2].toLowerCase()];
-  if (month === undefined) return null;
-  return new Date(2000 + Number(match[3]), month, Number(match[1]));
+  const iso = String(value ?? "").trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!iso) return null;
+  return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
 }
 
 function formatOrderDate(date) {
@@ -840,12 +861,15 @@ function formatInrDigits(value, digits) {
 
 async function attachHoldings() {
   try {
-    if (!state.portfolioText) {
-      const response = await fetch("/public/8506181188_PortFolioEqtSummary.csv");
-      if (response.ok) state.portfolioText = await response.text();
+    if (!state.holdingsLoaded) {
+      const response = await fetch("/api/v1/portfolio/holdings");
+      if (response.ok) {
+        state.holdings = await response.json();
+        state.holdingsLoaded = true;
+      }
     }
-    if (state.portfolioText) {
-      const matched = matchPortfolio(state.portfolioText, state.stocks);
+    if (state.holdingsLoaded) {
+      const matched = matchPortfolio(state.holdings, state.stocks);
       state.stocks.forEach((stock) => {
         const holding = matched.get(stock.sid);
         stock.holdQty = holding?.qty ?? null;
@@ -873,22 +897,19 @@ function attachTradePrices() {
   });
 }
 
-function matchPortfolio(text, stocks) {
-  const table = parseHoldingCsv(text);
-  const headers = table[0]?.map((header) => header.trim()) || [];
-  const index = Object.fromEntries(headers.map((header, position) => [header, position]));
+function matchPortfolio(holdings, stocks) {
   const bySid = new Map();
-  table.slice(1).forEach((row) => {
-    const company = String(row[index["Company Name"]] || "").trim();
+  holdings.forEach((row) => {
+    const company = String(row.company || "").trim();
     if (!company) return;
     const stock = matchHolding(company, stocks);
     if (!stock?.sid) return;
     bySid.set(stock.sid, {
-      qty: parseHoldingMoney(row[index.Qty]),
-      avgCost: parseHoldingMoney(row[index["Average Cost Price"]]),
-      invested: parseHoldingMoney(row[index["Value At Cost"]]),
-      pnl: parseHoldingMoney(row[index["Unrealized Profit/Loss"]]),
-      pct: parseHoldingMoney(row[index["Unrealized Profit/Loss %"]])
+      qty: row.qty,
+      avgCost: row.avgCost,
+      invested: row.costValue,
+      pnl: row.unrealized,
+      pct: row.unrealizedPct
     });
   });
   return bySid;
@@ -966,53 +987,13 @@ function matchHolding(company, stocks) {
   return null;
 }
 
-function parseHoldingCsv(text) {
-  const parsed = [];
-  let row = [];
-  let cell = "";
-  let quoted = false;
-  const source = String(text).replace(/^\uFEFF/, "");
-  for (let i = 0; i < source.length; i++) {
-    const ch = source[i];
-    if (quoted) {
-      if (ch === '"') {
-        if (source[i + 1] === '"') {
-          cell += '"';
-          i += 1;
-        } else {
-          quoted = false;
-        }
-      } else {
-        cell += ch;
-      }
-    } else if (ch === '"') {
-      quoted = true;
-    } else if (ch === ",") {
-      row.push(cell);
-      cell = "";
-    } else if (ch === "\n") {
-      row.push(cell);
-      parsed.push(row);
-      row = [];
-      cell = "";
-    } else if (ch !== "\r") {
-      cell += ch;
-    }
-  }
-  if (cell.length || row.length) {
-    row.push(cell);
-    parsed.push(row);
-  }
-  return parsed.filter((item) => item.some((value) => String(value).trim()));
-}
-
-function parseHoldingMoney(value) {
-  const raw = String(value ?? "").trim();
-  if (!raw) return null;
-  const negative = raw.startsWith("(") || raw.startsWith("-");
-  const num = Number(raw.replace(/[(),%\s+]/g, "").replace(/^-/, ""));
-  if (!Number.isFinite(num)) return null;
-  return negative ? -Math.abs(num) : num;
+function livePnl(stock) {
+  if (stock?.lastPrice == null || stock?.holdQty == null || stock?.holdInvested == null) return null;
+  const price = Number(stock.lastPrice);
+  const qty = Number(stock.holdQty);
+  const invested = Number(stock.holdInvested);
+  if (!Number.isFinite(price) || !Number.isFinite(qty) || !Number.isFinite(invested)) return null;
+  return price * qty - invested;
 }
 
 function pnlCell(value, percent) {
