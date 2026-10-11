@@ -8,6 +8,7 @@ const STOP = new Set([
 
 const columns = [
   { key: "company", label: "Company", type: "text" },
+  { key: "inStocks", label: "Listed", type: "mark" },
   { key: "qty", label: "Qty", type: "number", digits: 0 },
   { key: "avgCost", label: "Avg cost", type: "number", digits: 2 },
   { key: "price", label: "Price", type: "number", digits: 2 },
@@ -350,6 +351,7 @@ function sortValue(holding) {
   const stock = holding.stock;
   switch (state.sortKey) {
     case "company": return holding.company.toLowerCase();
+    case "inStocks": return holding.stock ? 0 : 1;
     case "qty": return holding.qty;
     case "avgCost": return holding.avgCost;
     case "price": return holding.price;
@@ -495,8 +497,12 @@ function render() {
     const lastLabel = last ? `${last.action} · ${formatWhen(last.date)}` : "—";
     const booked = holding.realized ? `<span class="pill booked">Booked</span>` : "";
     const ticker = stock?.ticker ? ` · ${escapeHtml(stock.ticker)}` : "";
+    const listed = stock
+      ? `<span class="mark-yes" role="img" aria-label="RSI, in the stock table"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3.5 8.5 6.5 11.5 12.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RSI</span></span>`
+      : `<span class="mark-no" role="img" aria-label="CSI, not in the stock table"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>CSI</span></span>`;
     row.innerHTML = `
       <td><span class="hold-name"><strong>${escapeHtml(holding.company)}</strong><small>${escapeHtml(holding.symbol)}${ticker}</small></span></td>
+      <td class="in-stock">${listed}</td>
       <td class="num">${formatPlain(holding.qty, 0)}</td>
       <td class="num">${formatInr(holding.avgCost, 2)}</td>
       <td class="num">${formatInr(holding.price, 2)}</td>
@@ -573,6 +579,7 @@ if (typeof document !== "undefined" && document.querySelector("#hold-rows")) {
     header.dataset.type = column.type;
     header.textContent = column.label;
     if (column.type === "number") header.classList.add("num");
+    if (column.type === "mark") header.classList.add("in-stock");
     header.addEventListener("click", () => sortBy(header));
     return header;
   }));

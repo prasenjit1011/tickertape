@@ -512,6 +512,7 @@ function ordersForStock(stock) {
 
 function fillYearlyHead(stock) {
   document.querySelector("#yearly-title").textContent = stock?.name || stock?.sid || "Range";
+  document.querySelector("#yearly-qty").textContent = formatNumber(stock?.holdQty, 0);
   document.querySelector("#yearly-price").textContent = formatInrDigits(stock?.lastPrice, 2);
   document.querySelector("#yearly-invested").textContent = formatInr(stock?.holdInvested);
   setPnlText(document.querySelector("#yearly-pnl"), stock?.holdPnl, false);

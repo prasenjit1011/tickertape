@@ -10,9 +10,7 @@ body.stocks-page {
 }
 
 body.stocks-page .topbar {
-  width: 100%;
-  flex: 0 0 auto;
-  padding: 0.7rem 1rem;
+  display: none;
 }
 
 body.stocks-page .eyebrow,
@@ -35,10 +33,11 @@ body.stocks-page .sync-form input {
 
 body.stocks-page .sheet {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  margin: 0 0.75rem 0.75rem;
+  margin: 0.75rem;
   background: #12382d;
   border: 1px solid #2d6a56;
   border-radius: 0.8rem;
@@ -54,23 +53,202 @@ body.stocks-page .sheet-bar {
   border-bottom: 1px solid #2d6a56;
 }
 
-body.stocks-page .sheet-bar h2 { margin-right: auto; }
+body.stocks-page .toolbar {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.7rem;
+  min-width: 0;
+  padding: 0.8rem 0.95rem 0.75rem;
+  background: transparent;
+}
+
+body.stocks-page .bar-identity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+}
+
+body.stocks-page .toolbar .brand { min-width: 0; gap: 0.7rem; }
+
+body.stocks-page .toolbar .mark {
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 0.65rem;
+  background: #0f6e56;
+  color: #f4fff9;
+  font-size: 0.78rem;
+}
+
+body.stocks-page .toolbar .eyebrow {
+  margin: 0 0 0.02rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+}
+
+body.stocks-page .toolbar h1 {
+  font-size: 1.15rem;
+  font-weight: 650;
+  line-height: 1.15;
+}
+
+body.stocks-page .bar-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem 0.8rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+body.stocks-page .tool-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+body.stocks-page .tool-label {
+  color: #8fb5a4;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+body.stocks-page .toolbar .filter {
+  flex: 1 1 16rem;
+  min-width: 12rem;
+}
 
 body.stocks-page .filter input,
 body.stocks-page .sync-form input {
   width: auto;
+  height: auto;
   margin: 0;
+  padding: 0.48rem 0.8rem;
+  font-size: inherit;
 }
 
-body.stocks-page .filter input { min-width: 16rem; }
+body.stocks-page .toolbar .filter input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.48rem 0.8rem 0.48rem 2.15rem;
+  border-radius: 999px;
+  background-color: #0c241c;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23b7d4c6' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='4.25'/%3E%3Cpath d='M10.5 10.5 13.5 13.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 0.72rem center;
+  background-size: 0.9rem;
+}
 
-body.stocks-page .sync-form { display: flex; align-items: center; }
+body.stocks-page .cap-toggle {
+  display: flex;
+  align-items: center;
+  height: auto;
+  gap: 0.15rem;
+  padding: 0.15rem;
+  border: 1px solid #3d7a66;
+  border-radius: 999px;
+  background: #0c241c;
+}
+
+body.stocks-page .cap-toggle .btn {
+  height: auto;
+  border: 1px solid transparent;
+  padding: 0.28rem 0.65rem;
+  color: #e7f6ee;
+  background: transparent;
+}
+
+body.stocks-page .cap-toggle .btn.primary {
+  background: #0f6e56;
+  color: #f4fff9;
+}
+
+body.stocks-page .sync-cluster { margin-left: auto; }
+
+body.stocks-page .sync-form {
+  display: flex;
+  align-items: center;
+  height: auto;
+  gap: 0.35rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+body.stocks-page .sid-field input {
+  width: 5.2rem;
+  border: 1px solid #3d7a66;
+  border-radius: 999px;
+  background: #0c241c;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+body.stocks-page .sync-form .btn {
+  align-self: auto;
+  height: auto;
+  border: 1px solid #3d7a66;
+  border-left: 1px solid #3d7a66;
+  border-radius: 999px;
+  background: transparent;
+  color: #e7f6ee;
+  font-weight: 400;
+}
+
+body.stocks-page .sync-form .btn:hover { background: #1a4d3d; }
+
+body.stocks-page .toolbar .btn.primary {
+  background: #0f6e56;
+  color: #f4fff9;
+}
+
+body.stocks-page .page-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0;
+  padding-left: 0.75rem;
+  border-left: 1px solid #2d6a56;
+}
+
+body.stocks-page .page-nav a {
+  padding: 0.4rem 0.78rem;
+  border-radius: 999px;
+  color: #e7f6ee;
+  font-size: 0.9rem;
+}
+
+body.stocks-page .page-nav a:hover {
+  background: #1a4d3d;
+  color: #e7f6ee;
+}
+
+body.stocks-page .toolbar .btn {
+  height: auto;
+  padding: 0.4rem 0.78rem;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+body.stocks-page .toolbar .btn.ghost:hover {
+  background: #1a4d3d;
+  border-color: #5d9a84;
+}
+
+body.stocks-page .toolbar .btn:focus-visible,
+body.stocks-page .toolbar input:focus-visible,
+body.stocks-page .page-nav a:focus-visible {
+  outline: 2px solid #8fd4b4;
+  outline-offset: 2px;
+}
 
 body.stocks-page .icon-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  white-space: nowrap;
 }
 
 body.stocks-page .icon-btn svg {
@@ -79,7 +257,25 @@ body.stocks-page .icon-btn svg {
   flex: 0 0 auto;
 }
 
-body.stocks-page .status { margin: 0; min-height: 0; white-space: nowrap; }
+body.stocks-page .toolbar .status {
+  flex: 0 0 auto;
+  max-width: min(28rem, 46%);
+  margin: 0;
+  min-height: 0;
+  padding: 0.28rem 0.7rem;
+  overflow: hidden;
+  border: 1px solid #2d6a56;
+  border-radius: 999px;
+  background: #0c241c;
+  color: #d5eee2;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  text-align: right;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+body.stocks-page .status:empty { display: none; }
 
 body.stocks-page .yearly-panel {
   --yearly-row: 2.15rem;
@@ -273,6 +469,7 @@ body.stocks-page .row-actions {
 
 body.stocks-page .table-wrap {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   overflow: auto;
 }
@@ -378,10 +575,15 @@ body.stocks-page .data-table tbody tr:nth-child(even) { background: #164536; }
 body.stocks-page .data-table tbody tr:hover { background: #1f5c48; }
 
 @media (max-width: 860px) {
-  body.stocks-page .topbar,
-  body.stocks-page .sheet-bar {
-    display: flex;
-    flex-wrap: wrap;
+  body.stocks-page .bar-identity { flex-wrap: wrap; }
+
+  body.stocks-page .toolbar .status { max-width: none; }
+
+  body.stocks-page .sync-cluster { margin-left: 0; }
+
+  body.stocks-page .page-nav {
+    padding-left: 0;
+    border-left: 0;
   }
 
   body.stocks-page .filter input { min-width: 0; width: 100%; }

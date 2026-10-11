@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.Semaphore;
 
 @Slf4j
 @Component
@@ -26,7 +26,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class StockSyncJob {
 
     private final StockPeerService stockPeerService;
-    private final ReentrantLock syncLock = new ReentrantLock();
+    private final Semaphore syncPermit = new Semaphore(1);
 
     @Value("${app.sync.sids:HYU}")
     private String sids;
@@ -57,34 +57,34 @@ public class StockSyncJob {
     }
 
     public void syncDue() {
-        syncLock.lock();
+        syncPermit.acquireUninterruptibly();
         try {
             refreshStocksDueToday();
         } finally {
-            syncLock.unlock();
+            syncPermit.release();
         }
     }
 
     public DailySyncStartResponse startNow() {
-        if (!syncLock.tryLock()) {
+        if (!syncPermit.tryAcquire()) {
             return new DailySyncStartResponse(false, 0, "Daily sync is already running");
         }
         List<StockPeer> due;
         try {
             due = stocksDueToday();
         } catch (RuntimeException ex) {
-            syncLock.unlock();
+            syncPermit.release();
             throw ex;
         }
         if (due.isEmpty()) {
-            syncLock.unlock();
+            syncPermit.release();
             return new DailySyncStartResponse(true, 0, "Nothing left to update today");
         }
         Thread thread = new Thread(() -> {
             try {
                 refreshStocks(due);
             } finally {
-                syncLock.unlock();
+                syncPermit.release();
             }
         }, "stock-daily-sync");
         thread.setDaemon(true);
@@ -95,14 +95,14 @@ public class StockSyncJob {
     public List<StockPeerResponse> collect(String sid) {
         List<String> targets = sid == null || sid.isBlank() ? configuredSids() : List.of(sid.trim().toUpperCase());
         List<StockPeerResponse> collected = new ArrayList<>();
-        syncLock.lock();
+        syncPermit.acquireUninterruptibly();
         try {
             for (String target : targets) {
                 log.info("Stock collection started for {}", target);
                 collected.addAll(stockPeerService.syncFromSummary(target));
             }
         } finally {
-            syncLock.unlock();
+            syncPermit.release();
         }
         return collected;
     }
@@ -113,7 +113,7 @@ public class StockSyncJob {
             targets = configuredSids();
         }
         int synced = 0;
-        syncLock.lock();
+        syncPermit.acquireUninterruptibly();
         try {
             for (String sid : targets) {
                 try {
@@ -125,7 +125,7 @@ public class StockSyncJob {
                 }
             }
         } finally {
-            syncLock.unlock();
+            syncPermit.release();
         }
         log.info("Synced {} of {} stocks", synced, targets.size());
         return synced;

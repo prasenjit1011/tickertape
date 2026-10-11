@@ -158,6 +158,40 @@ body.portfolio-page .trade-table .num { text-align: right; font-variant-numeric:
 body.portfolio-page .action-buy { color: #8fd4b4; font-weight: 700; }
 body.portfolio-page .action-sell { color: #ffb4b4; font-weight: 700; }
 
+body.portfolio-page .in-stock {
+  width: 4.6rem;
+  text-align: center;
+}
+
+body.portfolio-page .mark-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12rem;
+}
+
+body.portfolio-page .mark-yes,
+body.portfolio-page .mark-no {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+body.portfolio-page .mark-yes { color: #8fd4b4; }
+body.portfolio-page .mark-no { color: #ffb4b4; }
+
+body.portfolio-page .mark-yes svg,
+body.portfolio-page .mark-no svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
 body.portfolio-page .hold-name {
   display: flex;
   flex-direction: column;
