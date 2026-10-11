@@ -23,6 +23,8 @@ placeFilter();
 mobileBar.addEventListener("change", () => {
   placeFilter();
   if (state.stocks.length) render();
+  if (!mobileBar.matches) setRangeMinimized(false);
+  else if (document.body.classList.contains("yearly-open")) setRangeMinimized(true);
 });
 
 const searchToggle = document.querySelector(".search-icon");
@@ -99,51 +101,46 @@ function paintStatus(text, tone) {
 
 const columns = [
   { key: "name", label: "Name", type: "text" },
+
+
   { key: "ticker", label: "Ticker", type: "text" },
   { key: "sid", label: "SID", type: "text" },
   { key: "sector", label: "Sector", type: "text" },
 
+
+
   { key: "marketCapLabel", label: "Cap label", type: "text" },
   { key: "mrktCapRank", label: "Rank", type: "number", digits: 0 },
-  { key: "marketCap", label: "Market cap", type: "number", digits: 0 },
+  { key: "marketCap", label: "MarketCap", type: "number", digits: 0 },
+
   { key: "breco", label: "Forecast", type: "number" },
+  { key: "risk", label: "Risk", type: "number" },
   { key: "pe", label: "PE", type: "number" },
 
-  { key: "lastPrice", label: "Last price", type: "number", digits: 2 },
+  { key: "lastPrice", label: "LTP", type: "number", digits: 2 },
   { key: "change", label: "Change", type: "number", digits: 2 },
   { key: "dyChange", label: "Day %", type: "number", digits: 2 },
 
-  { key: "wkChange", label: "Week %", type: "number", digits: 2 },
-  { key: "mnChange", label: "Month %", type: "number", digits: 2 },
-  
-
-  { key: "away52wH", label: "Away 52w high", type: "number", digits: 2 },
-  { key: "away52wL", label: "Away 52w low", type: "number", digits: 2 },
-
+  { key: "4wpct", label: "4w %", type: "number" },
+  { key: "52wpct", label: "52w %", type: "number" },
+  { key: "away52wH", label: "H-52W %", type: "number", digits: 2 },
+  { key: "away52wL", label: "L-52W %", type: "number", digits: 2 },
+  { key: "52wHigh", label: "52w high", type: "number" },
+  { key: "52wLow", label: "52w low", type: "number" },
 
   { key: "holdQty", label: "Qty", type: "number", digits: 0 },
   { key: "holdInvested", label: "Invested", type: "number", digits: 0 },
   { key: "holdPnl", label: "Profit / loss", type: "number", digits: 0 },
   { key: "holdPct", label: "P/L %", type: "number", digits: 2 },
-  
+  { key: "holdAvgCost", label: "Avg buy price", type: "number", digits: 2 },
+  { key: "holdAvgSell", label: "Sell price", type: "number", digits: 2 },
+
+  { key: "wkChange", label: "Week %", type: "number", digits: 2 },
+  { key: "mnChange", label: "Month %", type: "number", digits: 2 },
   { key: "wkRange", label: "Week range", type: "number", digits: 2 },
   { key: "mnRange", label: "Month range", type: "number", digits: 2 },
-  
-  { key: "52wHigh", label: "52w high", type: "number" },
-  { key: "52wLow", label: "52w low", type: "number" },
-  { key: "52wpct", label: "52w %", type: "number" },
-  { key: "4wpct", label: "4w %", type: "number" },
 
-  { key: "risk", label: "Risk", type: "number" },
-
-
-
-  { key: "volBreakout", label: "Vol breakout", type: "number", digits: 2 },
-  { key: "crossedHigh", label: "Crossed high", type: "bool" },
-  { key: "crossedLow", label: "Crossed low", type: "bool" },
-  { key: "mrktCapf", label: "Cap f", type: "number", digits: 0 },
   { key: "ttmPe", label: "TTM PE", type: "number" },
-  { key: "apef", label: "APEF", type: "number" },
   { key: "pb", label: "PB", type: "number" },
   { key: "pbr", label: "PBR", type: "number" },
   { key: "eps", label: "EPS", type: "number" },
@@ -151,20 +148,7 @@ const columns = [
   { key: "roe", label: "ROE", type: "number" },
   { key: "divYield", label: "Div yield", type: "number" },
   { key: "divDps", label: "Div DPS", type: "number" },
-
-  { key: "12mVol", label: "12m vol", type: "number" },
-  { key: "3mAvgVol", label: "3m avg vol", type: "number", digits: 0 },
-  { key: "beta", label: "Beta", type: "number" },
-  { key: "indpe", label: "Ind PE", type: "number" },
-  { key: "indpb", label: "Ind PB", type: "number" },
-  { key: "inddy", label: "Ind DY", type: "number" },
-  { key: "nShareholders", label: "Shareholders", type: "number", digits: 0 },
-  { key: "expenseRatio", label: "Expense ratio", type: "number" },
-  { key: "trackErr", label: "Track err", type: "number" },
-  { key: "indExpenseRatio", label: "Ind expense", type: "number" },
-  { key: "indTrackErr", label: "Ind track err", type: "number" },
-  { key: "asstUnderMan", label: "AUM", type: "number" },
-  { key: "etfLiq", label: "ETF liq", type: "number" },
+  { key: "apef", label: "APEF", type: "number" },
 
   { key: "o", label: "Open", type: "number", digits: 2 },
   { key: "h", label: "High", type: "number", digits: 2 },
@@ -172,12 +156,30 @@ const columns = [
   { key: "c", label: "Close", type: "number", digits: 2 },
   { key: "vol", label: "Volume", type: "number", digits: 0 },
   { key: "turnover", label: "Turnover", type: "number", digits: 2 },
-  { key: "exchange", label: "Exchange", type: "text" },
-  { key: "type", label: "Type", type: "text" },
   { key: "ts", label: "Quote time", type: "time" },
 
+  { key: "volBreakout", label: "Vol breakout", type: "number", digits: 2 },
+  { key: "crossedHigh", label: "Crossed high", type: "bool" },
+  { key: "crossedLow", label: "Crossed low", type: "bool" },
+  { key: "12mVol", label: "12m vol", type: "number" },
+  { key: "3mAvgVol", label: "3m avg vol", type: "number", digits: 0 },
+  { key: "beta", label: "Beta", type: "number" },
 
-  { key: "etfLiqLabel", label: "ETF liq label", type: "text" }  
+  { key: "indpe", label: "Ind PE", type: "number" },
+  { key: "indpb", label: "Ind PB", type: "number" },
+  { key: "inddy", label: "Ind DY", type: "number" },
+
+  { key: "expenseRatio", label: "Expense ratio", type: "number" },
+  { key: "trackErr", label: "Track err", type: "number" },
+  { key: "indExpenseRatio", label: "Ind expense", type: "number" },
+  { key: "indTrackErr", label: "Ind track err", type: "number" },
+  { key: "asstUnderMan", label: "AUM", type: "number" },
+  { key: "etfLiq", label: "ETF liq", type: "number" },
+  { key: "exchange", label: "Exchange", type: "text" },
+  { key: "type", label: "Type", type: "text" },
+  { key: "nShareholders", label: "Shareholders", type: "number", digits: 0 },
+
+  { key: "etfLiqLabel", label: "ETF liq label", type: "text" }
 ];
 
 const state = {
@@ -243,6 +245,16 @@ rows.addEventListener("click", (event) => {
   const button = event.target.closest(".row-sync");
   if (button) syncOne(button);
 });
+function setRangeMinimized(minimized) {
+  document.querySelectorAll(".range-col").forEach((column) => {
+    column.classList.toggle("is-min", minimized);
+    const button = column.querySelector(".range-min");
+    const label = column.querySelector(".range-label").textContent;
+    button.setAttribute("aria-expanded", String(!minimized));
+    button.setAttribute("aria-label", `${minimized ? "Show" : "Minimize"} ${label}`);
+  });
+}
+
 document.querySelector(".range-grid").addEventListener("click", (event) => {
   const button = event.target.closest(".range-min");
   if (!button) return;
@@ -349,10 +361,13 @@ async function showYearly(button) {
   const monthlyBody = document.querySelector("#monthly-rows");
   panel.hidden = false;
   document.body.classList.add("yearly-open");
+  if (mobileBar.matches) setRangeMinimized(true);
   const stock = state.stocks.find((item) => item.sid === sid);
   fillYearlyHead(stock);
   await ensureOrders();
+  attachTradePrices();
   fillTradeAverages(stock);
+  fillStockDetails(stock);
   fillTrades(stock);
   yearlyBody.innerHTML = `<tr><td colspan="5">Loading ${escapeHtml(sid)}…</td></tr>`;
   monthlyBody.innerHTML = `<tr><td colspan="5">Loading ${escapeHtml(sid)}…</td></tr>`;
@@ -505,6 +520,9 @@ function render() {
       if (column.key === "holdInvested") return `<td class="num">${formatInr(stock.holdInvested)}</td>`;
       if (column.key === "holdPnl") return pnlCell(stock.holdPnl, false);
       if (column.key === "holdPct") return pnlCell(stock.holdPct, true);
+      if (column.key === "holdAvgCost" || column.key === "holdAvgSell") {
+        return `<td class="num">${formatInrDigits(stock[column.key], 2)}</td>`;
+      }
       if (column.key === "sector") {
         const sector = stock.sector ?? "";
         if (!String(sector).trim()) return `<td>—</td>`;
@@ -633,6 +651,123 @@ function fillYearlyHead(stock) {
   document.querySelector("#yearly-sell").textContent = "—";
 }
 
+const detailGroups = [
+  { title: "Holding", keys: ["holdQty", "holdInvested", "holdPnl", "holdPct", "holdAvgCost", "holdAvgSell"] },
+  { title: "Returns", keys: ["wkChange", "mnChange", "wkRange", "mnRange", "4wpct", "52wpct", "away52wH", "away52wL", "52wHigh", "52wLow"] },
+  { title: "Size", keys: ["marketCapLabel", "mrktCapRank", "marketCap", "mrktCapf"] },
+  { title: "Valuation", keys: ["pe", "ttmPe", "pb", "pbr", "eps", "bps", "roe", "divYield", "divDps", "breco", "risk", "apef"] },
+  { title: "About", keys: ["ticker", "sid", "sector", "exchange", "type", "nShareholders"] },
+  { title: "Quote", keys: ["change", "o", "h", "l", "c", "vol", "turnover", "ts"] },
+  { title: "Volume", keys: ["volBreakout", "crossedHigh", "crossedLow", "12mVol", "3mAvgVol", "beta"] },
+  { title: "Industry", keys: ["indpe", "indpb", "inddy"] },
+  { title: "Fund", keys: ["expenseRatio", "trackErr", "indExpenseRatio", "indTrackErr", "asstUnderMan", "etfLiq", "etfLiqLabel"] }
+];
+
+const percentKeys = new Set(["dyChange", "wkChange", "mnChange", "4wpct", "52wpct", "away52wH", "away52wL", "wkRange", "mnRange", "divYield", "roe", "holdPct", "inddy", "expenseRatio", "trackErr", "indExpenseRatio", "indTrackErr"]);
+const toneKeys = new Set(["change", "dyChange", "wkChange", "mnChange", "4wpct", "52wpct", "holdPnl", "holdPct"]);
+
+function fillStockDetails(stock) {
+  const list = document.querySelector("#stock-details");
+  list.replaceChildren();
+  if (!stock) return;
+  const byKey = new Map(columns.map((column) => [column.key, column]));
+  list.append(detailSpot(stock));
+  detailGroups.forEach((group) => {
+    const rows = group.keys
+      .map((key) => byKey.get(key))
+      .filter((column) => column && keepDetail(stock, group, column));
+    if (!rows.length) return;
+    const section = document.createElement("details");
+    section.className = "detail-group";
+    section.open = group.title === "Returns" || group.title === "Holding";
+    const heading = document.createElement("summary");
+    heading.textContent = group.title;
+    const body = document.createElement("div");
+    body.className = "detail-rows";
+    rows.forEach((column) => body.append(detailRow(stock, column)));
+    section.append(heading, body);
+    list.append(section);
+  });
+}
+
+function keepDetail(stock, group, column) {
+  if (detailText(stock, column) !== "—") return true;
+  return group.title === "Holding"
+    && (column.key === "holdAvgCost" || column.key === "holdAvgSell")
+    && stock.holdQty != null;
+}
+
+function detailSpot(stock) {
+  const spot = document.createElement("div");
+  spot.className = "detail-spot";
+  const price = document.createElement("div");
+  price.className = "spot-main";
+  const priceTerm = document.createElement("dt");
+  priceTerm.textContent = "LTP";
+  const priceValue = document.createElement("dd");
+  priceValue.textContent = formatInrDigits(stock.lastPrice, 2);
+  price.append(priceTerm, priceValue);
+  spot.append(price);
+  return spot;
+}
+
+function detailRow(stock, column) {
+  const item = document.createElement("div");
+  const term = document.createElement("dt");
+  term.textContent = column.label;
+  const value = document.createElement("dd");
+  value.textContent = detailText(stock, column);
+  paintTone(value, stock[column.key], column.key);
+  item.append(term, value);
+  return item;
+}
+
+function paintTone(value, raw, key) {
+  value.classList.remove("pnl-up", "pnl-down");
+  if (!toneKeys.has(key) || raw == null || Number.isNaN(Number(raw)) || Number(raw) === 0) return;
+  value.classList.add(Number(raw) > 0 ? "pnl-up" : "pnl-down");
+}
+
+function detailText(stock, column) {
+  const value = stock[column.key];
+  if (column.key === "holdPnl") return formatInr(value);
+  if (column.key === "holdInvested") return formatInr(value);
+  if (column.key === "holdAvgCost" || column.key === "holdAvgSell") return formatInrDigits(value, 2);
+  if (column.key === "holdQty") return value == null || Number.isNaN(Number(value)) ? "—" : formatNumber(value, 0);
+  if (column.key === "sector") return String(stock.sector || "").trim() || "—";
+  if (percentKeys.has(column.key)) {
+    if (value == null || Number.isNaN(Number(value))) return "—";
+    return formatSignedPct(value);
+  }
+  if (column.key === "change") {
+    if (value == null || Number.isNaN(Number(value))) return "—";
+    const number = Number(value);
+    const text = detailNumber(Math.abs(number), 2);
+    if (number > 0) return `+${text}`;
+    if (number < 0) return `−${text}`;
+    return text;
+  }
+  if (column.type === "text") return value == null || value === "" ? "—" : String(value);
+  if (column.type === "bool") {
+    if (value === null || value === undefined) return "—";
+    return value ? "Yes" : "No";
+  }
+  if (column.type === "time") {
+    if (value === null || value === undefined || value === "") return "—";
+    const date = new Date(Number(value));
+    return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString();
+  }
+  return detailNumber(value, column.digits ?? 2);
+}
+
+function detailNumber(value, digits) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
+  return new Intl.NumberFormat("en-IN", {
+    maximumFractionDigits: digits,
+    minimumFractionDigits: digits
+  }).format(Number(value));
+}
+
 function fillTradeAverages(stock) {
   const orders = ordersForStock(stock);
   const buy = stock?.holdAvgCost ?? averageTradePrice(orders, "buy");
@@ -707,20 +842,34 @@ async function attachHoldings() {
   try {
     if (!state.portfolioText) {
       const response = await fetch("/public/8506181188_PortFolioEqtSummary.csv");
-      if (!response.ok) return;
-      state.portfolioText = await response.text();
+      if (response.ok) state.portfolioText = await response.text();
+    }
+    if (state.portfolioText) {
+      const matched = matchPortfolio(state.portfolioText, state.stocks);
+      state.stocks.forEach((stock) => {
+        const holding = matched.get(stock.sid);
+        stock.holdQty = holding?.qty ?? null;
+        stock.holdAvgCost = holding?.avgCost ?? null;
+        stock.holdInvested = holding?.invested ?? null;
+        stock.holdPnl = holding?.pnl ?? null;
+        stock.holdPct = holding?.pct ?? null;
+      });
     }
   } catch {
-    return;
+    // Prices below still come from the order book when the summary is missing.
   }
-  const matched = matchPortfolio(state.portfolioText, state.stocks);
+  await ensureOrders();
+  attachTradePrices();
+}
+
+function attachTradePrices() {
   state.stocks.forEach((stock) => {
-    const holding = matched.get(stock.sid);
-    stock.holdQty = holding?.qty ?? null;
-    stock.holdAvgCost = holding?.avgCost ?? null;
-    stock.holdInvested = holding?.invested ?? null;
-    stock.holdPnl = holding?.pnl ?? null;
-    stock.holdPct = holding?.pct ?? null;
+    const orders = ordersForStock(stock);
+    if (stock.holdAvgCost == null) {
+      const buy = averageTradePrice(orders, "buy");
+      if (buy != null) stock.holdAvgCost = buy;
+    }
+    stock.holdAvgSell = averageTradePrice(orders, "sell");
   });
 }
 
