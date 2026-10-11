@@ -3,6 +3,96 @@ const heads = document.querySelector("#stock-heads");
 const status = document.querySelector("#status");
 const form = document.querySelector("#sync-form");
 const filter = document.querySelector("#filter");
+const filterLabel = filter.closest(".filter");
+const pageNav = document.querySelector(".page-nav");
+const brand = document.querySelector(".brand");
+const controls = document.querySelector(".bar-controls");
+const mobileBar = window.matchMedia("(max-width: 720px)");
+
+function placeFilter() {
+  if (mobileBar.matches) {
+    brand.append(filterLabel);
+    brand.append(pageNav);
+  } else {
+    controls.prepend(filterLabel);
+    controls.append(pageNav);
+  }
+}
+
+placeFilter();
+mobileBar.addEventListener("change", placeFilter);
+
+const searchToggle = document.querySelector(".search-icon");
+const searchClear = document.querySelector(".search-clear");
+
+function setSearchOpen(open) {
+  brand.classList.toggle("search-open", open);
+  searchToggle.setAttribute("aria-expanded", String(open));
+  if (open) filter.focus();
+}
+
+searchToggle.addEventListener("click", () => {
+  if (!mobileBar.matches) return;
+  setSearchOpen(true);
+});
+
+searchClear.addEventListener("click", () => {
+  if (!mobileBar.matches) return;
+  filter.value = "";
+  state.sid = "";
+  state.sector = "";
+  state.query = "";
+  render();
+  setSearchOpen(false);
+});
+
+function paintStatus(text, tone) {
+  status.classList.remove("is-busy", "is-error");
+  if (tone) status.classList.add(`is-${tone}`);
+  status.setAttribute("aria-label", text);
+  status.replaceChildren();
+
+  const count = !tone && text.match(/^(\d+) of (\d+)(?: · (.+))?$/);
+  if (count) {
+    const board = document.createElement("span");
+    board.className = "status-board";
+    [
+      [count[1], "shown"],
+      [count[2], "stored"]
+    ].forEach(([value, label]) => {
+      const stat = document.createElement("span");
+      stat.className = "status-stat";
+      const strong = document.createElement("span");
+      strong.className = "status-count";
+      strong.textContent = value;
+      const caption = document.createElement("span");
+      caption.className = "status-label";
+      caption.textContent = label;
+      stat.append(strong, caption);
+      board.append(stat);
+    });
+    status.append(board);
+
+    const tags = count[3] ? count[3].split(" · ").filter(Boolean) : [];
+    if (tags.length) {
+      const wrap = document.createElement("span");
+      wrap.className = "status-tags";
+      tags.forEach((tag) => {
+        const chip = document.createElement("span");
+        chip.className = "status-tag";
+        chip.textContent = tag;
+        wrap.append(chip);
+      });
+      status.append(wrap);
+    }
+    return;
+  }
+
+  const message = document.createElement("span");
+  message.className = "status-msg";
+  message.textContent = text;
+  status.append(message);
+}
 
 const columns = [
   { key: "name", label: "Name", type: "text" },
@@ -114,6 +204,25 @@ heads.replaceChildren(...columns.map((column) => {
   return header;
 }));
 
+const menuToggle = document.querySelector("#menu-toggle");
+const pageMenu = document.querySelector("#page-menu");
+
+function setMenuOpen(open) {
+  pageMenu.hidden = !open;
+  menuToggle.setAttribute("aria-expanded", String(open));
+}
+
+menuToggle.addEventListener("click", () => setMenuOpen(pageMenu.hidden));
+pageMenu.addEventListener("click", (event) => {
+  if (event.target.closest("button, a")) setMenuOpen(false);
+});
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".page-nav")) setMenuOpen(false);
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") setMenuOpen(false);
+});
+
 form.addEventListener("submit", sync);
 document.querySelector("#sync-all").addEventListener("click", syncAll);
 document.querySelector("#hide-small").addEventListener("click", () => toggleCap("hideSmall", "#hide-small"));
@@ -161,7 +270,7 @@ filter.addEventListener("input", () => {
 loadStocks();
 
 async function loadStocks() {
-  status.textContent = "Loading stocks…";
+  paintStatus("Loading stocks…", "busy");
   try {
     const response = await fetch("/api/v1/stocks");
     if (!response.ok) throw new Error(await readError(response));
@@ -169,7 +278,7 @@ async function loadStocks() {
     await attachHoldings();
     render();
   } catch (error) {
-    status.textContent = error.message;
+    paintStatus(error.message, "error");
     rows.replaceChildren();
   }
 }
@@ -177,7 +286,7 @@ async function loadStocks() {
 async function sync(event) {
   event.preventDefault();
   const sid = document.querySelector("#sid").value.trim().toUpperCase();
-  status.textContent = `Collecting ${sid}…`;
+  paintStatus(`Collecting ${sid}…`, "busy");
   const button = form.querySelector("button");
   button.disabled = true;
   try {
@@ -185,14 +294,14 @@ async function sync(event) {
     if (!response.ok) throw new Error(await readError(response));
     await loadStocks();
   } catch (error) {
-    status.textContent = error.message;
+    paintStatus(error.message, "error");
   } finally {
     button.disabled = false;
   }
 }
 
 async function syncAll() {
-  status.textContent = "Syncing all stocks…";
+  paintStatus("Syncing all stocks…", "busy");
   const button = document.querySelector("#sync-all");
   button.disabled = true;
   try {
@@ -202,9 +311,9 @@ async function syncAll() {
     state.stocks = stocks;
     await attachHoldings();
     render();
-    status.textContent = `Synced ${stocks.length} stocks`;
+    paintStatus(`Synced ${stocks.length} stocks`);
   } catch (error) {
-    status.textContent = error.message;
+    paintStatus(error.message, "error");
   } finally {
     button.disabled = false;
   }
@@ -213,14 +322,14 @@ async function syncAll() {
 async function startCron() {
   const button = document.querySelector("#start-cron");
   button.disabled = true;
-  status.textContent = "Starting daily sync…";
+  paintStatus("Starting daily sync…", "busy");
   try {
     const response = await fetch("/api/v1/stocks/sync-due", { method: "POST" });
     if (!response.ok) throw new Error(await readError(response));
     const body = await response.json();
-    status.textContent = body.message;
+    paintStatus(body.message);
   } catch (error) {
-    status.textContent = error.message;
+    paintStatus(error.message, "error");
   } finally {
     button.disabled = false;
   }
@@ -295,7 +404,7 @@ function setYearlyDisabled(sid, disabled) {
 async function syncOne(button) {
   const sid = button.dataset.sid;
   button.disabled = true;
-  status.textContent = `Syncing ${sid}…`;
+  paintStatus(`Syncing ${sid}…`, "busy");
   try {
     const response = await fetch(`/api/v1/stocks/${encodeURIComponent(sid)}/refresh`, { method: "POST" });
     if (!response.ok) throw new Error(await readError(response));
@@ -305,9 +414,9 @@ async function syncOne(button) {
     else state.stocks.push(updated);
     await attachHoldings();
     render();
-    status.textContent = `Updated ${updated.ticker || updated.sid}`;
+    paintStatus(`Updated ${updated.ticker || updated.sid}`);
   } catch (error) {
-    status.textContent = error.message;
+    paintStatus(error.message, "error");
     button.disabled = false;
   }
 }
@@ -365,9 +474,9 @@ function render() {
     state.hideSmall ? "small removed" : "",
     state.hideMid ? "mid removed" : ""
   ].filter(Boolean).join(" · ");
-  status.textContent = state.stocks.length
+  paintStatus(state.stocks.length
     ? `${visible.length} of ${state.stocks.length}${state.sector ? ` · ${state.sector}` : ""}${removed ? ` · ${removed}` : ""}`
-    : "No stocks stored yet. Sync a symbol.";
+    : "No stocks stored yet. Sync a symbol.");
 
   headers().forEach((header) => {
     header.removeAttribute("aria-sort");

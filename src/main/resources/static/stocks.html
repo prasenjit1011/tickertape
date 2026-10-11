@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Stocks · Tickertape</title>
   <link rel="stylesheet" href="/css/products.css">
-  <link rel="stylesheet" href="/css/stocks.css?v=28">
+  <link rel="stylesheet" href="/css/stocks.css?v=52">
 </head>
 <body class="stocks-page">
   <header class="topbar">
@@ -17,22 +17,34 @@
     <div class="sheet-bar toolbar">
       <div class="bar-identity">
         <div class="brand">
-          <span class="mark">TT</span>
-          <div>
-            <p class="eyebrow">Tickertape</p>
-            <h1>Stock Data</h1>
-          </div>
+          <span class="mark">SD</span>
+          <h1>Stock Data</h1>
+          <span id="status" class="status" role="status"></span>
         </div>
-        <p id="status" class="status" role="status"></p>
       </div>
       <div class="bar-controls">
         <label class="filter">
           <span class="sr-only">Filter table</span>
+          <button type="button" class="search-icon" aria-label="Search" aria-expanded="false">
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="7" cy="7" r="4.25" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.5 10.5 13.5 13.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </button>
           <input id="filter" type="search" placeholder="Filter name, ticker, sector">
+          <button type="button" class="search-clear" aria-label="Clear search">
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </button>
         </label>
+        <div class="tool-group sync-cluster">
+          <form id="sync-form" class="sync-form">
+            <label class="sid-field">
+              <span class="sr-only">Symbol</span>
+              <input id="sid" name="sid" value="HYU" maxlength="12" required pattern="[A-Za-z0-9]+" spellcheck="false">
+            </label>
+            <button class="btn ghost" type="submit">Sync</button>
+          </form>
+        </div>
         <div class="tool-group" role="group" aria-label="Hide market caps">
-          <span class="tool-label">Hide</span>
           <div class="cap-toggle">
+            
             <button id="hide-small" class="btn ghost icon-btn" type="button" aria-pressed="false">
               <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5 8h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
               Small
@@ -43,21 +55,18 @@
             </button>
           </div>
         </div>
-        <div class="tool-group sync-cluster">
-          <span class="tool-label">Update</span>
-          <form id="sync-form" class="sync-form">
-            <label class="sid-field">
-              <span class="sr-only">Symbol</span>
-              <input id="sid" name="sid" value="HYU" maxlength="12" required pattern="[A-Za-z0-9]+" spellcheck="false">
-            </label>
-            <button class="btn ghost" type="submit">Sync</button>
-          </form>
-          <button id="sync-all" class="btn primary" type="button">Sync data</button>
-          <button id="start-cron" class="btn ghost" type="button">Daily sync</button>
-        </div>
+
+
         <nav class="page-nav" aria-label="Pages">
-          <a class="btn ghost" href="/portfolio.html">Portfolio</a>
-          <a class="btn ghost" href="/products">Products</a>
+          <button id="menu-toggle" class="btn ghost icon-btn menu-toggle" type="button" aria-expanded="false" aria-controls="page-menu" aria-haspopup="menu" aria-label="Menu">
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2.5 4h11M2.5 8h11M2.5 12h11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
+          <div id="page-menu" class="page-menu" role="menu" hidden>
+            <button id="sync-all" class="menu-item" type="button" role="menuitem">Sync data</button>
+            <button id="start-cron" class="menu-item" type="button" role="menuitem">Daily sync</button>
+            <a class="menu-item" href="/portfolio.html" role="menuitem">Portfolio</a>
+            <a class="menu-item" href="/products" role="menuitem">Products</a>
+          </div>
         </nav>
       </div>
     </div>
@@ -188,6 +197,6 @@
     
   </main>
 
-  <script src="/js/stocks.js?v=29"></script>
+  <script src="/js/stocks.js?v=37"></script>
 </body>
 </html>
