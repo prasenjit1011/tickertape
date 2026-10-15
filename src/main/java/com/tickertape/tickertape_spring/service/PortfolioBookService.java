@@ -24,20 +24,18 @@ public class PortfolioBookService {
     private final EquityHoldingRepository equityHoldingRepository;
     private final EquityOrderRepository equityOrderRepository;
 
-    public void replaceFrom(Resource holdingsFile, Resource ordersFile) throws IOException {
-        if (!holdingsFile.exists() || !ordersFile.exists()) {
-            log.warn("Portfolio CSV files are missing; stored holdings and orders were left unchanged");
+    public void replaceFrom(Resource ordersFile) throws IOException {
+        if (ordersFile == null || !ordersFile.exists()) {
+            log.warn("Order book CSV is missing; stored holdings and orders were left unchanged");
             return;
         }
-        List<EquityHolding> holdings;
         List<EquityOrder> orders;
-        try (InputStreamReader holdingsReader = new InputStreamReader(holdingsFile.getInputStream(), StandardCharsets.UTF_8);
-             InputStreamReader ordersReader = new InputStreamReader(ordersFile.getInputStream(), StandardCharsets.UTF_8)) {
-            holdings = BrokerBookParser.holdings(holdingsReader);
+        try (InputStreamReader ordersReader = new InputStreamReader(ordersFile.getInputStream(), StandardCharsets.UTF_8)) {
             orders = BrokerBookParser.orders(ordersReader);
         }
+        List<EquityHolding> holdings = BrokerBookParser.holdingsFromOrders(orders);
         if (holdings.isEmpty() || orders.isEmpty()) {
-            log.warn("Portfolio CSV parse produced no rows; stored holdings and orders were left unchanged");
+            log.warn("Order book parse produced no open holdings; stored holdings and orders were left unchanged");
             return;
         }
         equityHoldingRepository.deleteAll();

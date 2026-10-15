@@ -2,7 +2,10 @@ package com.tickertape.tickertape_spring.job;
 
 import com.tickertape.tickertape_spring.dto.DailySyncStartResponse;
 import com.tickertape.tickertape_spring.dto.StockPeerResponse;
+import com.tickertape.tickertape_spring.model.EquityHolding;
 import com.tickertape.tickertape_spring.model.StockPeer;
+import com.tickertape.tickertape_spring.repository.EquityHoldingRepository;
+import com.tickertape.tickertape_spring.service.HoldingNameMatcher;
 import com.tickertape.tickertape_spring.service.StockPeerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +20,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 
@@ -25,8 +29,12 @@ import java.util.concurrent.Semaphore;
 @RequiredArgsConstructor
 public class StockSyncJob {
 
+    private static final int[][] RANK_BANDS = {{1, 50}, {51, 100}, {101, 150}, {151, 200}};
+
     private final StockPeerService stockPeerService;
+    private final EquityHoldingRepository equityHoldingRepository;
     private final Semaphore syncPermit = new Semaphore(1);
+    private int quotePass;
 
     @Value("${app.sync.sids:HYU}")
     private String sids;
@@ -67,29 +75,23 @@ public class StockSyncJob {
 
     public DailySyncStartResponse startNow() {
         if (!syncPermit.tryAcquire()) {
-            return new DailySyncStartResponse(false, 0, "Daily sync is already running");
+            return new DailySyncStartResponse(false, 0, "Quick update is already running");
         }
-        List<StockPeer> due;
         try {
-            due = stocksDueToday();
-        } catch (RuntimeException ex) {
-            syncPermit.release();
-            throw ex;
-        }
-        if (due.isEmpty()) {
-            syncPermit.release();
-            return new DailySyncStartResponse(true, 0, "Nothing left to update today");
-        }
-        Thread thread = new Thread(() -> {
-            try {
-                refreshStocks(due);
-            } finally {
-                syncPermit.release();
+            int pass = quotePass;
+            String label = passLabel(pass);
+            List<String> sids = sidsForPass(pass);
+            if (sids.isEmpty()) {
+                quotePass = (quotePass + 1) % RANK_BANDS.length;
+                return new DailySyncStartResponse(true, 0, "Nothing to update (" + label + ")");
             }
-        }, "stock-daily-sync");
-        thread.setDaemon(true);
-        thread.start();
-        return new DailySyncStartResponse(true, due.size(), "Daily sync started for " + due.size() + " stocks");
+            List<StockPeerResponse> updated = stockPeerService.refreshQuotes(sids);
+            quotePass = (quotePass + 1) % RANK_BANDS.length;
+            return new DailySyncStartResponse(true, updated.size(),
+                    "Updated " + updated.size() + " stocks (" + label + ")", updated);
+        } finally {
+            syncPermit.release();
+        }
     }
 
     public List<StockPeerResponse> collect(String sid) {
@@ -185,6 +187,59 @@ public class StockSyncJob {
             return 1;
         }
         return 2;
+    }
+
+    private List<String> sidsForPass(int pass) {
+        List<StockPeer> stored = stockPeerService.findStored();
+        LinkedHashSet<String> sids = new LinkedHashSet<>();
+        if (pass == 0) {
+            sids.addAll(investedSids(stored));
+        }
+        int[] band = RANK_BANDS[pass];
+        sids.addAll(rankSids(stored, band[0], band[1]));
+        return List.copyOf(sids);
+    }
+
+    private StockPeer stockForHolding(EquityHolding holding, List<StockPeer> stored) {
+        String symbol = holding.getSymbol() == null ? "" : holding.getSymbol().trim();
+        for (StockPeer stock : stored) {
+            if (stock.getTicker() != null && stock.getTicker().equalsIgnoreCase(symbol)) {
+                return stock;
+            }
+        }
+        return HoldingNameMatcher.match(holding.getCompany(), stored);
+    }
+
+    private List<String> investedSids(List<StockPeer> stored) {
+        LinkedHashSet<String> sids = new LinkedHashSet<>();
+        for (EquityHolding holding : equityHoldingRepository.findAll()) {
+            if (holding.getCostValue() == null || holding.getCostValue() <= 0 || holding.getCompany() == null) {
+                continue;
+            }
+            StockPeer stock = stockForHolding(holding, stored);
+            if (stock != null && stock.getSid() != null && !stock.getSid().isBlank()) {
+                sids.add(stock.getSid());
+            }
+        }
+        return List.copyOf(sids);
+    }
+
+    private List<String> rankSids(List<StockPeer> stored, int low, int high) {
+        return stored.stream()
+                .filter(stock -> stock.getSid() != null && !stock.getSid().isBlank())
+                .filter(stock -> {
+                    Double rank = stock.getMrktCapRank();
+                    return rank != null && rank >= low && rank <= high;
+                })
+                .map(stock -> stock.getSid().trim().toUpperCase())
+                .distinct()
+                .toList();
+    }
+
+    private String passLabel(int pass) {
+        int[] band = RANK_BANDS[pass];
+        String ranks = "ranks " + band[0] + "–" + band[1];
+        return pass == 0 ? "holdings and " + ranks : ranks;
     }
 
     private List<String> configuredSids() {

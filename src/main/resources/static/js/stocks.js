@@ -153,7 +153,7 @@ const columns = [
   { key: "holdQty", label: "Qty", type: "number", digits: 0 },
   { key: "holdInvested", label: "Invested", type: "number", digits: 0 },
   { key: "holdLivePnl", label: "Live P/L", type: "number", digits: 0 },
-  { key: "holdPct", label: "P/L %", type: "number", digits: 2 },
+  { key: "holdPct", label: "Live P/L %", type: "number", digits: 2 },
   { key: "holdAvgCost", label: "Avg buy price", type: "number", digits: 2 },
   { key: "holdAvgSell", label: "Sell price", type: "number", digits: 2 },
 
@@ -358,11 +358,17 @@ async function syncAll() {
 async function startCron() {
   const button = document.querySelector("#start-cron");
   button.disabled = true;
-  paintStatus("Starting daily sync…", "busy");
+  paintStatus("Updating quotes…", "busy");
   try {
     const response = await fetch("/api/v1/stocks/sync-due", { method: "POST" });
     if (!response.ok) throw new Error(await readError(response));
     const body = await response.json();
+    if (Array.isArray(body.stocks) && body.stocks.length) {
+      const bySid = new Map(body.stocks.map((stock) => [stock.sid, stock]));
+      state.stocks = state.stocks.map((stock) => bySid.get(stock.sid) ?? stock);
+      await attachHoldings();
+      render();
+    }
     paintStatus(body.message);
   } catch (error) {
     paintStatus(error.message, "error");
@@ -501,6 +507,7 @@ function sortBy(header) {
 function render() {
   state.stocks.forEach((stock) => {
     stock.holdLivePnl = livePnl(stock);
+    stock.holdPct = livePnlPct(stock);
   });
   const visible = state.stocks
     .filter((stock) => {
@@ -668,7 +675,10 @@ function fillYearlyHead(stock) {
   document.querySelector("#yearly-qty").textContent = formatNumber(stock?.holdQty, 0);
   document.querySelector("#yearly-price").textContent = formatInrDigits(stock?.lastPrice, 2);
   document.querySelector("#yearly-invested").textContent = formatInr(stock?.holdInvested);
-  if (stock) stock.holdLivePnl = livePnl(stock);
+  if (stock) {
+    stock.holdLivePnl = livePnl(stock);
+    stock.holdPct = livePnlPct(stock);
+  }
   setPnlText(document.querySelector("#yearly-live"), stock?.holdLivePnl, false);
   setPnlText(document.querySelector("#yearly-pct"), stock?.holdPct, true);
   document.querySelector("#yearly-buy").textContent = "—";
@@ -898,18 +908,23 @@ function attachTradePrices() {
 }
 
 function matchPortfolio(holdings, stocks) {
+  const byTicker = new Map();
+  stocks.forEach((stock) => {
+    const ticker = String(stock.ticker || "").trim().toUpperCase();
+    if (ticker) byTicker.set(ticker, stock);
+  });
   const bySid = new Map();
   holdings.forEach((row) => {
+    const symbol = String(row.symbol || "").trim().toUpperCase();
     const company = String(row.company || "").trim();
-    if (!company) return;
-    const stock = matchHolding(company, stocks);
+    const stock = (symbol && byTicker.get(symbol)) || (company ? matchHolding(company, stocks) : null);
     if (!stock?.sid) return;
     bySid.set(stock.sid, {
       qty: row.qty,
       avgCost: row.avgCost,
       invested: row.costValue,
       pnl: row.unrealized,
-      pct: row.unrealizedPct
+      pct: null
     });
   });
   return bySid;
@@ -994,6 +1009,13 @@ function livePnl(stock) {
   const invested = Number(stock.holdInvested);
   if (!Number.isFinite(price) || !Number.isFinite(qty) || !Number.isFinite(invested)) return null;
   return price * qty - invested;
+}
+
+function livePnlPct(stock) {
+  const pnl = livePnl(stock);
+  const invested = Number(stock?.holdInvested);
+  if (pnl == null || !Number.isFinite(invested) || invested === 0) return null;
+  return (pnl / invested) * 100;
 }
 
 function pnlCell(value, percent) {

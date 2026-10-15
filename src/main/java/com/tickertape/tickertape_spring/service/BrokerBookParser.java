@@ -8,7 +8,10 @@ import java.io.IOException;
 import java.io.Reader;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -79,6 +82,79 @@ public final class BrokerBookParser {
                     .build());
         }
         return orders;
+    }
+
+    public static List<EquityHolding> holdingsFromOrders(List<EquityOrder> orders) {
+        List<EquityOrder> sorted = orders.stream()
+                .sorted(Comparator
+                        .comparing(EquityOrder::getTradeDate, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(order -> "buy".equalsIgnoreCase(order.getAction()) ? 0 : 1)
+                        .thenComparing(order -> order.getOrderRef() == null ? "" : order.getOrderRef()))
+                .toList();
+        Map<String, Deque<Lot>> lots = new LinkedHashMap<>();
+        for (EquityOrder order : sorted) {
+            if (order.getSymbol() == null || order.getSymbol().isBlank() || order.getQty() == null || order.getQty() <= 0) {
+                continue;
+            }
+            Deque<Lot> book = lots.computeIfAbsent(order.getSymbol(), key -> new ArrayDeque<>());
+            if ("buy".equalsIgnoreCase(order.getAction())) {
+                double cost = value(order.getTradeValue())
+                        + value(order.getBrokerage())
+                        + value(order.getTurnoverCharges())
+                        + value(order.getStampDuty());
+                book.add(new Lot(order.getQty(), cost));
+            } else if ("sell".equalsIgnoreCase(order.getAction())) {
+                double left = order.getQty();
+                while (left > 1e-9 && !book.isEmpty()) {
+                    Lot lot = book.peek();
+                    double take = Math.min(left, lot.qty);
+                    double fraction = take / lot.qty;
+                    lot.qty -= take;
+                    lot.cost *= 1 - fraction;
+                    left -= take;
+                    if (lot.qty < 1e-9) {
+                        book.poll();
+                    }
+                }
+            }
+        }
+        List<EquityHolding> holdings = new ArrayList<>();
+        int line = 0;
+        for (Map.Entry<String, Deque<Lot>> entry : lots.entrySet()) {
+            double qty = 0;
+            double cost = 0;
+            for (Lot lot : entry.getValue()) {
+                qty += lot.qty;
+                cost += lot.cost;
+            }
+            if (qty <= 0.001 || cost <= 0) {
+                continue;
+            }
+            String symbol = entry.getKey();
+            holdings.add(EquityHolding.builder()
+                    .line(line++)
+                    .symbol(symbol)
+                    .company(symbol)
+                    .qty(qty)
+                    .avgCost(cost / qty)
+                    .costValue(cost)
+                    .build());
+        }
+        return holdings;
+    }
+
+    private static double value(Double amount) {
+        return amount == null ? 0 : amount;
+    }
+
+    private static final class Lot {
+        private double qty;
+        private double cost;
+
+        private Lot(double qty, double cost) {
+            this.qty = qty;
+            this.cost = cost;
+        }
     }
 
     static Double money(String raw) {

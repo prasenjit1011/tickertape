@@ -9,6 +9,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.util.List;
+import java.util.Locale;
+
 @Component
 public class TickertapeClient {
 
@@ -65,9 +68,25 @@ public class TickertapeClient {
     }
 
     public TickertapeQuoteResponse fetchQuote(String sid) {
+        return fetchQuotes(List.of(sid));
+    }
+
+    public TickertapeQuoteResponse fetchQuotes(List<String> sids) {
+        if (sids == null || sids.isEmpty()) {
+            return new TickertapeQuoteResponse();
+        }
         waitForNextCall();
+        String joined = sids.stream()
+                .filter(sid -> sid != null && sid.matches("[A-Za-z0-9]+"))
+                .map(sid -> sid.toUpperCase(Locale.ROOT))
+                .distinct()
+                .reduce((left, right) -> left + "," + right)
+                .orElse("");
+        if (joined.isEmpty()) {
+            return new TickertapeQuoteResponse();
+        }
         return quotesClient.get()
-                .uri("/quotes?sids={sid}", sid)
+                .uri(java.net.URI.create("https://quotes-api.tickertape.in/quotes?sids=" + joined))
                 .retrieve()
                 .body(TickertapeQuoteResponse.class);
     }

@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -79,6 +80,35 @@ public class StockPeerService {
 
     public List<StockPeer> findStored() {
         return stockPeerRepository.findAll();
+    }
+
+    public List<StockPeerResponse> refreshQuotes(List<String> sids) {
+        if (sids == null || sids.isEmpty()) {
+            return List.of();
+        }
+        TickertapeQuoteResponse response = tickertapeClient.fetchQuotes(sids);
+        if (response == null || response.getData() == null) {
+            return List.of();
+        }
+        Instant now = Instant.now();
+        List<StockPeerResponse> updated = new ArrayList<>();
+        for (TickertapeQuoteResponse.Quote quote : response.getData()) {
+            if (quote.getSid() == null || quote.getSid().isBlank()) {
+                continue;
+            }
+            Optional<StockPeer> existing = stockPeerRepository.findBySid(quote.getSid());
+            if (existing.isEmpty()) {
+                continue;
+            }
+            StockPeer stock = existing.get();
+            applyQuoteFields(stock, quote);
+            if (quote.getPrice() != null) {
+                stock.setLastPrice(quote.getPrice());
+            }
+            stock.setUpdatedAt(now);
+            updated.add(toResponse(stockPeerRepository.save(stock)));
+        }
+        return updated;
     }
 
     public List<String> findAllSids() {
@@ -231,7 +261,10 @@ public class StockPeerService {
         if (quote == null) {
             throw new UpstreamDataException("Tickertape quote for '" + stock.getSid() + "' was not found");
         }
+        applyQuoteFields(stock, quote);
+    }
 
+    private void applyQuoteFields(StockPeer stock, TickertapeQuoteResponse.Quote quote) {
         stock.setType(quote.getType());
         stock.setExchange(quote.getExchange());
         stock.setPrice(quote.getPrice());

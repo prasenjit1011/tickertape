@@ -14,37 +14,24 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class BrokerBookParserTest {
 
     @Test
-    void parsesPortfolioAndOrderBook() throws Exception {
-        List<EquityHolding> holdings = BrokerBookParser.holdings(Files.newBufferedReader(Path.of(
-                "src/main/resources/static/public/8506181188_PortFolioEqtSummary.csv")));
+    void parsesOrderBookIntoOpenHoldings() throws Exception {
         List<EquityOrder> orders = BrokerBookParser.orders(Files.newBufferedReader(Path.of(
-                "src/main/resources/static/public/orderBook_Equity_1791616753390.csv")));
+                "src/main/resources/static/public/orderBook_Equity_1792023937412.csv")));
+        List<EquityHolding> holdings = BrokerBookParser.holdingsFromOrders(orders);
+
+        assertEquals(784, orders.size());
+        EquityOrder first = orders.get(0);
+        assertEquals(LocalDate.of(2026, 10, 14), first.getTradeDate());
+        assertEquals("JKTYRE", first.getSymbol());
+        assertEquals("Buy", first.getAction());
+        assertEquals(2, first.getQty());
+        assertEquals(334.9, first.getPrice());
+        assertEquals(669.8, first.getTradeValue());
 
         assertEquals(127, holdings.size());
-        EquityHolding aarti = holdings.get(0);
-        assertEquals("AARIND", aarti.getSymbol());
-        assertEquals("AARTI INDUSTRIES LTD", aarti.getCompany());
-        assertEquals(3, aarti.getQty());
-        assertEquals(357.62, aarti.getAvgCost());
-        assertEquals(-3.74, aarti.getDayPct());
-        assertEquals(-311.83, aarti.getRealized());
-        assertEquals(28.67, aarti.getUnrealizedPct());
-
-        EquityHolding gas = holdings.get(2);
-        assertEquals("ADAGAS", gas.getSymbol());
-        assertEquals(0.22, gas.getDayPct());
-        assertEquals(-852.50, gas.getUnrealized());
-        assertEquals(-13.14, gas.getUnrealizedPct());
-
-        assertEquals(770, orders.size());
-        EquityOrder first = orders.get(0);
-        assertEquals(LocalDate.of(2026, 10, 8), first.getTradeDate());
-        assertEquals("EMAMILTD", first.getSymbol());
-        assertEquals("Buy", first.getAction());
-        assertEquals(5, first.getQty());
-        assertEquals(367.05, first.getPrice());
-        assertEquals(1835.25, first.getTradeValue());
-        assertEquals(6.84, first.getCharges());
-        assertEquals("NSE", first.getExchange());
+        EquityHolding dabur = holdings.stream().filter(holding -> "DABUR".equals(holding.getSymbol())).findFirst().orElseThrow();
+        assertEquals(67, dabur.getQty());
+        assertEquals(33031.47, dabur.getCostValue(), 0.05);
+        assertEquals(372382.33, holdings.stream().mapToDouble(EquityHolding::getCostValue).sum(), 0.05);
     }
 }

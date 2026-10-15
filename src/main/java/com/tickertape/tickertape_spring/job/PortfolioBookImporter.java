@@ -19,10 +19,7 @@ public class PortfolioBookImporter implements ApplicationRunner {
     @Value("${app.portfolio.import-on-startup:true}")
     private boolean importOnStartup;
 
-    @Value("${app.portfolio.holdings:classpath:static/public/8506181188_PortFolioEqtSummary.csv}")
-    private Resource holdingsFile;
-
-    @Value("${app.portfolio.orders:classpath:static/public/orderBook_Equity_1791616753390.csv}")
+    @Value("${app.portfolio.orders:classpath:static/public/orderBook_Equity_1792023937412.csv}")
     private Resource ordersFile;
 
     @Override
@@ -31,7 +28,7 @@ public class PortfolioBookImporter implements ApplicationRunner {
             return;
         }
         try {
-            portfolioBookService.replaceFrom(holdingsFile, ordersFile);
+            portfolioBookService.replaceFrom(ordersFile);
         } catch (Exception ex) {
             log.error("Could not store portfolio holdings and orders", ex);
         }

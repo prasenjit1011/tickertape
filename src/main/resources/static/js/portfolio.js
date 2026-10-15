@@ -10,11 +10,12 @@ const columns = [
   { key: "company", label: "Company", type: "text" },
   { key: "inStocks", label: "Listed", type: "mark" },
   { key: "qty", label: "Qty", type: "number", digits: 0 },
+  { key: "costValue", label: "Invested", type: "number", digits: 0 },
   { key: "avgCost", label: "Avg cost", type: "number", digits: 2 },
   { key: "price", label: "Price", type: "number", digits: 2 },
   { key: "marketValue", label: "Value", type: "number", digits: 0 },
   { key: "unrealized", label: "Unrealized", type: "number", digits: 0 },
-  { key: "unrealizedPct", label: "Unreal %", type: "number", digits: 2 },
+  { key: "unrealizedPct", label: "Live P/L %", type: "number", digits: 2 },
   { key: "dayPct", label: "Day %", type: "number", digits: 2 },
   { key: "realized", label: "Realized", type: "number", digits: 0 },
   { key: "cap", label: "Cap", type: "text" },
@@ -93,6 +94,12 @@ function nameScore(holdingTokens, stockTokens) {
   return leading ? Math.max(dice, 0.86) : dice;
 }
 
+function matchByTicker(symbol, stocks) {
+  const ticker = String(symbol || "").trim().toUpperCase();
+  if (!ticker) return null;
+  return stocks.find((stock) => String(stock.ticker || "").trim().toUpperCase() === ticker) || null;
+}
+
 function matchStock(company, stocks) {
   const holdingTokens = tokens(company);
   let best = null;
@@ -146,6 +153,7 @@ function daysSince(date) {
 
 function statusOf(holding) {
   const pct = holding.unrealizedPct;
+  if (pct == null || Number.isNaN(Number(pct))) return { key: "hold", label: "Hold" };
   const last = holding.orders[0];
   const recentBuy = last && last.action.toLowerCase() === "buy" && last.date && daysSince(last.date) <= 14;
   const away = holding.stock?.away52wH;
@@ -193,21 +201,26 @@ function buildHoldings(portfolioRows, orderRows, stocks) {
     const symbol = String(row.symbol || "").trim();
     const company = String(row.company || "").trim();
     if (!symbol || !company) return null;
-    const stock = matchStock(company, stocks);
+    const stock = matchByTicker(symbol, stocks) || matchStock(company, stocks);
     const orders = ordersFor(company, stock, bySymbol);
+    const qty = row.qty;
+    const invested = row.costValue;
+    const ltp = stock?.lastPrice ?? null;
+    const live = ltp != null && qty != null && invested != null ? Number(ltp) * Number(qty) - Number(invested) : null;
+    const livePct = live != null && Number(invested) !== 0 ? (live / Number(invested)) * 100 : null;
     const holding = {
       symbol,
-      company,
+      company: stock?.name || company,
       isin: String(row.isin || "").trim(),
-      qty: row.qty,
+      qty,
       avgCost: row.avgCost,
-      price: row.price,
+      price: ltp ?? row.price,
       dayPct: row.dayPct,
-      costValue: row.costValue,
-      marketValue: row.marketValue,
+      costValue: invested,
+      marketValue: ltp != null && qty != null ? Number(ltp) * Number(qty) : row.marketValue,
       realized: row.realized,
-      unrealized: row.unrealized,
-      unrealizedPct: row.unrealizedPct,
+      unrealized: live,
+      unrealizedPct: livePct,
       stock,
       orders
     };
@@ -439,6 +452,7 @@ function render() {
       <td><span class="hold-name"><strong>${escapeHtml(holding.company)}</strong><small>${escapeHtml(holding.symbol)}${ticker}</small></span></td>
       <td class="in-stock">${listed}</td>
       <td class="num">${formatPlain(holding.qty, 0)}</td>
+      <td class="num">${formatInr(holding.costValue)}</td>
       <td class="num">${formatInr(holding.avgCost, 2)}</td>
       <td class="num">${formatInr(holding.price, 2)}</td>
       <td class="num">${formatInr(holding.marketValue)}</td>
